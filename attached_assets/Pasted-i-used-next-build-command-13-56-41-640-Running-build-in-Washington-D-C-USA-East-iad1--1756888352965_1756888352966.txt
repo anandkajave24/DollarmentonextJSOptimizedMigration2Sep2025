@@ -1,0 +1,92 @@
+i used "next build"  command - [13:56:41.640] Running build in Washington, D.C., USA (East) – iad1
+[13:56:41.640] Build machine configuration: 2 cores, 8 GB
+[13:56:41.655] Cloning github.com/anandkajave24/DollarmentonextJSOptimizedMigration2Sep2025 (Branch: main, Commit: 8159afe)
+[13:56:41.781] Previous build caches not available
+[13:56:42.473] Cloning completed: 818.000ms
+[13:56:43.060] Running "vercel build"
+[13:56:43.467] Vercel CLI 46.1.1
+[13:56:43.880] Installing dependencies...
+[13:56:48.546] npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+[13:56:48.571] npm warn deprecated gm@1.25.1: The gm module has been sunset. Please migrate to an alternative. https://github.com/aheckmann/gm?tab=readme-ov-file#2025-02-24-this-project-is-not-maintained
+[13:56:49.845] npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+[13:56:49.914] npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+[13:57:05.048] 
+[13:57:05.049] added 601 packages in 21s
+[13:57:05.050] 
+[13:57:05.055] 75 packages are looking for funding
+[13:57:05.055]   run npm fund for details
+[13:57:05.114] Detected Next.js version: 15.5.2
+[13:57:05.114] Running "next build"
+[13:57:05.721] Attention: Next.js now collects completely anonymous telemetry regarding usage.
+[13:57:05.721] This information is used to shape Next.js' roadmap and prioritize features.
+[13:57:05.721] You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+[13:57:05.721] https://nextjs.org/telemetry
+[13:57:05.722] 
+[13:57:05.781]    ▲ Next.js 15.5.2
+[13:57:05.782]    - Environments: .env.production
+[13:57:05.782]    - Experiments (use with caution):
+[13:57:05.782]      · optimizePackageImports
+[13:57:05.782] 
+[13:57:05.869]    Linting and checking validity of types ...
+[13:58:40.328] Failed to compile.
+[13:58:40.329] 
+[13:58:40.330] ./client/src/components/calculators/CalculatorRouter.tsx:402:25
+[13:58:40.330] Type error: 'params' is possibly 'undefined'.
+[13:58:40.330] 
+[13:58:40.330] [0m [90m 400 |[39m       [33m<[39m[33mRoute[39m path[33m=[39m[32m"/:calculatorRoute"[39m[33m>[39m
+[13:58:40.331]  [90m 401 |[39m         {(params) [33m=>[39m {
+[13:58:40.331] [31m[1m>[22m[39m[90m 402 |[39m           [36mconst[39m route [33m=[39m params[33m.[39mcalculatorRoute[33m;[39m
+[13:58:40.331]  [90m     |[39m                         [31m[1m^[22m[39m
+[13:58:40.332]  [90m 403 |[39m           [90m// Only handle routes that end with -calculator[39m
+[13:58:40.332]  [90m 404 |[39m           [36mif[39m ([33m![39mroute[33m.[39mendsWith([32m'-calculator'[39m)) [36mreturn[39m [36mnull[39m[33m;[39m
+[13:58:40.332]  [90m 405 |[39m           [0m
+[13:58:40.414] Next.js build worker exited with code: 1 and signal: null
+[13:58:40.430] Error: Command "next build" exited with 1
+ChatGPT said:
+
+Got it 👍 – thanks for pasting the build logs.
+
+The key issue is here:
+
+Type error: 'params' is possibly 'undefined'.
+./client/src/components/calculators/CalculatorRouter.tsx:402:25
+
+
+At line 402:
+
+const route = params.calculatorRoute;
+
+
+TypeScript is warning that params could be undefined, so the build fails in strict mode.
+
+✅ How to fix it
+
+Update the code to safely handle params. For example:
+
+{(params) => {
+  const route = params?.calculatorRoute;
+  if (!route) return null;
+
+  // Only handle routes that end with -calculator
+  if (!route.endsWith('-calculator')) return null;
+
+  // ...rest of your logic
+}}
+
+
+This way:
+
+If params is undefined → it returns null (no crash).
+
+If params.calculatorRoute doesn’t exist → also safely returns null.
+
+🔧 Alternative (if you’re sure params will always exist)
+
+If you know for sure params is always defined, you can use a non-null assertion:
+
+const route = params!.calculatorRoute;
+
+
+But ⚠️ this skips TypeScript’s safety check and could throw runtime errors if params is missing.
+
+👉 Best practice: use the optional chaining (?.) version to make your code deploy safely.
