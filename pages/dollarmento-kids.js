@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import DollarmentoKids from '@/pages/DollarmentoKids';
 
-// SSG for SEO crawler accessibility - kids education content must be crawlable
-export async function getStaticProps() {
+// Use SSR to avoid potential React hook issues during build time
+export async function getServerSideProps() {
   const kidsContent = {
     ageGroups: [
       {

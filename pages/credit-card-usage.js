@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 
-// Hybrid approach: SSG for educational content + CSR for interactive credit card management
-export async function getStaticProps() {
+// Use SSR to ensure build safety with complex data structures
+export async function getServerSideProps() {
   const creditCardContent = {
     title: "Smart Credit Card Usage - Maximize Benefits & Build Excellent Credit",
     description: "Master strategic credit card usage for optimal credit building, reward maximization, and financial benefits. Learn responsible credit management, avoid common pitfalls, and leverage credit cards for wealth building.",

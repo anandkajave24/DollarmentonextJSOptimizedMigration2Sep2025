@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import Goals from '@/pages/Goals';
 
-// ISR for personalized financial goals - revalidate every 6 hours
-export async function getStaticProps() {
+// Use SSR to avoid potential React hook issues during build time
+export async function getServerSideProps() {
   const goalInsights = {
     lastUpdated: new Date().toISOString(),
     recommendedGoals: [

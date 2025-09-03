@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import FinancialHealthReportSidebar from '@/pages/FinancialHealthReportSidebar';
 
-// ISR for personalized financial health analysis - revalidate every 8 hours
-export async function getStaticProps() {
+// Use SSR to avoid potential React hook issues during build time
+export async function getServerSideProps() {
   const healthReport = {
     lastGenerated: new Date().toISOString(),
     overallScore: 78,

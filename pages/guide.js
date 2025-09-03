@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import Guide from '@/pages/Guide';
 
-// SSG for SEO crawler accessibility - guide content must be crawlable
-export async function getStaticProps() {
+// Use SSR to avoid potential React hook issues during build time
+export async function getServerSideProps() {
   const guideContent = {
     guides: [
       {

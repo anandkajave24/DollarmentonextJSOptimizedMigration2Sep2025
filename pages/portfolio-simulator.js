@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 
-// Hybrid approach: SSG for educational content + CSR for interactive simulator
-export async function getStaticProps() {
+// Use SSR to ensure build safety with complex data structures
+export async function getServerSideProps() {
   const portfolioContent = {
     title: "Portfolio Simulator - Investment Portfolio Analysis & Optimization Tool",
     description: "Simulate investment portfolio performance and optimize asset allocation. Test different investment strategies, analyze risk-return profiles, and build diversified portfolios with our advanced simulator.",

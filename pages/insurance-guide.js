@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import InsuranceGuide from '@/pages/InsuranceGuide';
 
-// SSG for SEO crawler accessibility - insurance content must be crawlable
-export async function getStaticProps() {
+// Use SSR to avoid potential React hook issues during build time
+export async function getServerSideProps() {
   const insuranceContent = {
     types: [
       {
