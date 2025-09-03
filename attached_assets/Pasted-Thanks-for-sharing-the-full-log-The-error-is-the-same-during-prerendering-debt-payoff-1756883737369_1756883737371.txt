@@ -1,0 +1,87 @@
+Thanks for sharing the full log 🙏.
+
+The error is the **same** → during prerendering `/debt-payoff-strategies`, Next.js crashes because something like:
+
+```jsx
+data.map(...)
+```
+
+is being called, but `data` is `undefined` at build time.
+
+---
+
+### Why this happens
+
+* On Vercel, **`next build`** tries to render every static page **before deployment**.
+* If `getStaticProps` (or wherever your props come from) doesn’t supply `data`, you get this error.
+* Locally (`next dev`), React renders dynamically so you might not notice the problem.
+
+---
+
+### 🚑 Quick Fix (Safe Rendering)
+
+Inside your `debt-payoff-strategies.js` page component, wrap every `.map` like this:
+
+```jsx
+{Array.isArray(data) ? (
+  data.map(item => <div key={item.id}>{item.title}</div>)
+) : (
+  <p>No data available.</p>
+)}
+```
+
+This way, even if `data` is `undefined` at build time, the page won’t crash.
+
+---
+
+### 🔒 Fix in `getStaticProps`
+
+Make sure `getStaticProps` always returns at least an empty array:
+
+```js
+export async function getStaticProps() {
+  try {
+    const res = await fetch("https://api.example.com/debt-strategies");
+    const data = await res.json();
+
+    return {
+      props: {
+        strategies: data || [],   // 👈 fallback empty array
+      },
+    };
+  } catch (err) {
+    return {
+      props: {
+        strategies: [],           // 👈 ensure no undefined
+      },
+    };
+  }
+}
+```
+
+---
+
+### 🔄 Alternative (Skip Static Generation)
+
+If this page **must** fetch live data every time, use SSR instead of SSG:
+
+```js
+export async function getServerSideProps() {
+  const res = await fetch("https://api.example.com/debt-strategies");
+  const data = await res.json();
+
+  return {
+    props: {
+      strategies: data || [],
+    },
+  };
+}
+```
+
+That way Vercel won’t try to prerender it during build.
+
+---
+
+👉 To give you an exact patch, I’d need to see your `debt-payoff-strategies.js` file (especially the part with `getStaticProps` and the `map`).
+
+Do you want me to **(a)** make it safe for static builds (fallback empty array), or **(b)** move it to SSR so it only runs at runtime?

@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 
-// Hybrid approach: SSG for educational content + CSR for interactive strategy comparison
-export async function getStaticProps() {
+// Use SSR to avoid state initialization issues during build time
+export async function getServerSideProps() {
   const strategiesContent = {
     title: "Debt Payoff Strategies - Compare & Choose Your Optimal Debt Elimination Plan",
     description: "Compare proven debt elimination strategies including avalanche, snowball, and hybrid approaches. Find the optimal debt payoff method for your situation with detailed analysis, calculators, and strategic planning tools.",
