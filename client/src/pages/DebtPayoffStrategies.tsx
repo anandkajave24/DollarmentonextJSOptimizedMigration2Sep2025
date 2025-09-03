@@ -300,7 +300,7 @@ export default function DebtPayoffStrategies() {
             
             <div className="space-y-3">
               <Label>Your Debts</Label>
-              {debts.map((debt, index) => (
+              {Array.isArray(debts) && debts.map((debt, index) => (
                 <Card key={debt.id} className="p-3 bg-gray-50">
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
