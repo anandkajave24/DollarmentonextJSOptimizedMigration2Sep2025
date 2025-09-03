@@ -1,0 +1,974 @@
+import { TabPills, TabItem } from "../components/ui/tab-pills";
+import React, { useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Button } from "../components/ui/button";
+import { Slider } from "../components/ui/slider";
+import { Label } from "../components/ui/label";
+import { Input } from "../components/ui/input";
+import { Progress } from "../components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, CartesianGrid } from "recharts";
+import FinancialDisclaimer from "../components/FinancialDisclaimer";
+
+const ASSETS = [
+  { id: "equity", name: "Equity", color: "bg-primary", default: 60 },
+  { id: "debt", name: "Debt", color: "bg-blue-400", default: 30 },
+  { id: "gold", name: "Gold", color: "bg-yellow-500", default: 5 },
+  { id: "other", name: "Alternative", color: "bg-purple-500", default: 5 }
+];
+
+const RISK_PROFILES = [
+  { id: "conservative", name: "Conservative", allocation: { equity: 20, debt: 60, gold: 15, other: 5 } },
+  { id: "moderate", name: "Moderate", allocation: { equity: 50, debt: 35, gold: 10, other: 5 } },
+  { id: "aggressive", name: "Aggressive", allocation: { equity: 75, debt: 15, gold: 5, other: 5 } }
+];
+
+// Historical market data reference (past 20-30 years)
+const HISTORICAL_DATA = {
+  equity: {
+    // BSE SENSEX historical CAGR over different periods
+    annualizedReturns: [
+      { period: "Last 5 years (2019-2024)", returns: 13.2 },
+      { period: "Last 10 years (2014-2024)", returns: 12.7 },
+      { period: "Last 15 years (2009-2024)", returns: 14.5 },
+      { period: "Last 20 years (2004-2024)", returns: 15.8 },
+      { period: "Last 25 years (1999-2024)", returns: 13.9 },
+    ],
+    bestYear: { year: "2009-2010", returns: 80.5 },
+    worstYear: { year: "2008-2009", returns: -37.9 },
+    volatility: 18.5
+  },
+  debt: {
+    // Government and corporate bonds historical data
+    annualizedReturns: [
+      { period: "Last 5 years (2019-2024)", returns: 6.8 },
+      { period: "Last 10 years (2014-2024)", returns: 7.2 },
+      { period: "Last 15 years (2009-2024)", returns: 7.5 },
+      { period: "Last 20 years (2004-2024)", returns: 7.9 },
+      { period: "Last 25 years (1999-2024)", returns: 8.1 },
+    ],
+    bestYear: { year: "2001-2002", returns: 13.4 },
+    worstYear: { year: "2009-2010", returns: 2.5 },
+    volatility: 3.2
+  },
+  gold: {
+    // Gold historical data in INR
+    annualizedReturns: [
+      { period: "Last 5 years (2019-2024)", returns: 12.5 },
+      { period: "Last 10 years (2014-2024)", returns: 8.9 },
+      { period: "Last 15 years (2009-2024)", returns: 10.1 },
+      { period: "Last 20 years (2004-2024)", returns: 12.7 },
+      { period: "Last 25 years (1999-2024)", returns: 11.2 },
+    ],
+    bestYear: { year: "2011-2012", returns: 33.6 },
+    worstYear: { year: "2013-2014", returns: -5.9 },
+    volatility: 12.8
+  },
+  other: {
+    // Alternative assets (REITs, InvITs, Commodities, etc.)
+    annualizedReturns: [
+      { period: "Last 5 years (2019-2024)", returns: 9.8 },
+      { period: "Last 10 years (2014-2024)", returns: 8.4 },
+      { period: "Last 15 years (2009-2024)", returns: 7.9 },
+      { period: "Last 20 years (2004-2024)", returns: 8.2 },
+      { period: "Last 25 years (1999-2024)", returns: 7.5 },
+    ],
+    bestYear: { year: "2019-2020", returns: 18.5 },
+    worstYear: { year: "2008-2009", returns: -19.8 },
+    volatility: 10.5
+  }
+};
+
+export default function PortfolioSimulator() {
+  // UI state
+  const [activeTab, setActiveTab] = useState<string>("allocation");
+  const [activeSidebarItem, setActiveSidebarItem] = useState<string>("parameters");
+  
+  // Simulation parameters
+  const [initialInvestment, setInitialInvestment] = useState<number>(1000000);
+  const [monthlySIP, setMonthlySIP] = useState<number>(10000);
+  const [years, setYears] = useState<number>(15);
+  const [inflationRate, setInflationRate] = useState<number>(6);
+  const [rebalancingFrequency, setRebalancingFrequency] = useState<string>("yearly");
+  const [riskProfile, setRiskProfile] = useState<string>("moderate");
+  
+  // Custom allocation
+  const [customAllocation, setCustomAllocation] = useState<{[key: string]: number}>({
+    equity: RISK_PROFILES.find(p => p.id === "moderate")?.allocation.equity || 50,
+    debt: RISK_PROFILES.find(p => p.id === "moderate")?.allocation.debt || 35,
+    gold: RISK_PROFILES.find(p => p.id === "moderate")?.allocation.gold || 10,
+    other: RISK_PROFILES.find(p => p.id === "moderate")?.allocation.other || 5
+  });
+  
+  // Simulation results
+  const [simulationResults, setSimulationResults] = useState<any>(null);
+  
+  // Update allocation based on risk profile
+  const handleRiskProfileChange = (profile: string) => {
+    setRiskProfile(profile);
+    const selectedProfile = RISK_PROFILES.find(p => p.id === profile);
+    if (selectedProfile) {
+      setCustomAllocation(selectedProfile.allocation);
+    }
+  };
+  
+  // Handle allocation slider changes
+  const handleAllocationChange = (asset: string, value: number) => {
+    // Calculate total of other assets
+    const others = Object.entries(customAllocation)
+      .filter(([key]) => key !== asset)
+      .reduce((sum, [_, val]) => sum + val, 0);
+    
+    // Adjust other allocations proportionally
+    const newAllocation = {...customAllocation};
+    newAllocation[asset] = value;
+    
+    // Only adjust others if there's something to adjust
+    if (others > 0) {
+      const remainingPercentage = 100 - value;
+      const factor = remainingPercentage / others;
+      
+      Object.keys(newAllocation).forEach(key => {
+        if (key !== asset) {
+          newAllocation[key] = Math.round(customAllocation[key] * factor);
+        }
+      });
+      
+      // Ensure sum is exactly 100%
+      const sum = Object.values(newAllocation).reduce((a, b) => a + b, 0);
+      if (sum !== 100) {
+        // Add/subtract the difference from the largest allocation that's not the one we changed
+        const largestKey = Object.entries(newAllocation)
+          .filter(([key]) => key !== asset)
+          .sort(([_, a], [__, b]) => b - a)[0][0];
+        
+        newAllocation[largestKey] += (100 - sum);
+      }
+    }
+    
+    setCustomAllocation(newAllocation);
+    setRiskProfile("custom");
+  };
+  
+  // Run simulation
+  const runSimulation = () => {
+    // This would involve complex calculations based on:
+    // - Initial investment
+    // - Monthly SIP
+    // - Years of investment
+    // - Asset allocation
+    // - Historical returns with randomization
+    // - Rebalancing frequency
+    // - Inflation adjustment
+    
+    // For demo purposes, we'll use a simplified model
+    const results = {
+      id: Date.now().toString(),
+      name: "Simulation " + new Date().toLocaleDateString(),
+      endValue: calculateEndValue(),
+      inflationAdjustedEndValue: calculateInflationAdjustedValue(),
+      totalInvested: initialInvestment + (monthlySIP * 12 * years),
+      cagr: calculateCAGR(),
+      maxDrawdown: calculateMaxDrawdown(),
+      volatility: calculateVolatility(),
+      sharpeRatio: calculateSharpeRatio(),
+      worstYear: calculateWorstYear(),
+      bestYear: calculateBestYear(),
+      yearlyData: generateYearlyData(),
+      assetAllocation: customAllocation
+    };
+    
+    setSimulationResults(results);
+    setActiveSidebarItem("results");
+  };
+  
+  // Helper calculation functions
+  const calculateEndValue = () => {
+    let total = initialInvestment;
+    
+    // Calculate weighted return based on allocation
+    const weightedReturn = Object.entries(customAllocation).reduce((acc, [asset, percentage]) => {
+      const assetData = HISTORICAL_DATA[asset as keyof typeof HISTORICAL_DATA];
+      // Use 15-year return as default
+      const returnRate = assetData.annualizedReturns[2].returns / 100;
+      return acc + (returnRate * (percentage / 100));
+    }, 0);
+    
+    // Compound initial investment
+    total = initialInvestment * Math.pow(1 + weightedReturn, years);
+    
+    // Add SIP contributions with compound interest
+    if (monthlySIP > 0) {
+      const monthlyRate = weightedReturn / 12;
+      const months = years * 12;
+      
+      // Formula for future value of a regular payment series
+      const sipFutureValue = monthlySIP * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate) * (1 + monthlyRate);
+      total += sipFutureValue;
+    }
+    
+    return Math.round(total);
+  };
+  
+  const calculateInflationAdjustedValue = () => {
+    const endValue = calculateEndValue();
+    return Math.round(endValue / Math.pow(1 + (inflationRate / 100), years));
+  };
+  
+  const calculateCAGR = () => {
+    const endValue = calculateEndValue();
+    const totalInvested = initialInvestment + (monthlySIP * 12 * years);
+    
+    // This is a simplification for the demo
+    return ((Math.pow(endValue / totalInvested, 1 / years) - 1) * 100).toFixed(2);
+  };
+  
+  const calculateMaxDrawdown = () => {
+    // In a real model, this would analyze historical patterns
+    // For demo, use a simplification based on volatility
+    const volatility = parseFloat(calculateVolatility());
+    return (volatility * 1.5).toFixed(2);
+  };
+  
+  const calculateVolatility = () => {
+    // Weighted average of asset volatilities
+    return Object.entries(customAllocation).reduce((acc, [asset, percentage]) => {
+      const assetData = HISTORICAL_DATA[asset as keyof typeof HISTORICAL_DATA];
+      return acc + (assetData.volatility * (percentage / 100));
+    }, 0).toFixed(2);
+  };
+  
+  const calculateSharpeRatio = () => {
+    const returnRate = parseFloat(calculateCAGR());
+    const volatility = parseFloat(calculateVolatility());
+    const riskFreeRate = 4.5; // Assume current 10-year government bond yield
+    
+    return ((returnRate - riskFreeRate) / volatility).toFixed(2);
+  };
+  
+  const calculateWorstYear = () => {
+    // Find worst performing asset in allocation and its weighting
+    const worstAsset = Object.entries(customAllocation)
+      .reduce((worst, [asset, percentage]) => {
+        const assetData = HISTORICAL_DATA[asset as keyof typeof HISTORICAL_DATA];
+        if (assetData.worstYear.returns < worst.return) {
+          return { asset, return: assetData.worstYear.returns, weight: percentage / 100 };
+        }
+        return worst;
+      }, { asset: '', return: 0, weight: 0 });
+      
+    // Apply a weighted worst case
+    const worstCase = Object.entries(customAllocation)
+      .reduce((acc, [asset, percentage]) => {
+        const assetData = HISTORICAL_DATA[asset as keyof typeof HISTORICAL_DATA];
+        return acc + (assetData.worstYear.returns * (percentage / 100));
+      }, 0);
+      
+    return worstCase.toFixed(2);
+  };
+  
+  const calculateBestYear = () => {
+    // Similar to worst year but for best performance
+    const bestCase = Object.entries(customAllocation)
+      .reduce((acc, [asset, percentage]) => {
+        const assetData = HISTORICAL_DATA[asset as keyof typeof HISTORICAL_DATA];
+        return acc + (assetData.bestYear.returns * (percentage / 100));
+      }, 0);
+      
+    return bestCase.toFixed(2);
+  };
+  
+  const generateYearlyData = () => {
+    const data = [];
+    let currentValue = initialInvestment;
+    let investedAmount = initialInvestment;
+    
+    for (let year = 1; year <= years; year++) {
+      // Calculate weighted return for this year (with some randomization)
+      const baseReturn = Object.entries(customAllocation).reduce((acc, [asset, percentage]) => {
+        const assetData = HISTORICAL_DATA[asset as keyof typeof HISTORICAL_DATA];
+        // Use 15-year return as default with slight randomization
+        const returnRate = assetData.annualizedReturns[2].returns / 100;
+        const volatility = assetData.volatility / 100;
+        // Randomize within 1 standard deviation
+        const randomFactor = 1 + ((Math.random() * 2 - 1) * volatility);
+        return acc + ((returnRate * randomFactor) * (percentage / 100));
+      }, 0);
+      
+      // Apply the return
+      currentValue = currentValue * (1 + baseReturn);
+      
+      // Add SIP contributions for the year
+      if (monthlySIP > 0) {
+        const yearlyContribution = monthlySIP * 12;
+        currentValue += yearlyContribution;
+        investedAmount += yearlyContribution;
+      }
+      
+      data.push({
+        year,
+        investedAmount: Math.round(investedAmount),
+        projectedValue: Math.round(currentValue),
+        nominalGain: Math.round(currentValue - investedAmount),
+        inflationAdjustedValue: Math.round(currentValue / Math.pow(1 + (inflationRate / 100), year))
+      });
+    }
+    
+    return data;
+  };
+  
+  // Format currency for display
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+  
+  // Format percentage
+  const formatPercentage = (value: number) => {
+    return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+  };
+  
+  return (
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Portfolio Simulator</h1>
+        <div className="flex space-x-2">
+          <Button variant="outline" className="flex items-center">
+            <span className="material-icons mr-1 text-sm">save</span>
+            Save
+          </Button>
+          <Button variant="default" className="flex items-center bg-blue-600 hover:bg-blue-700">
+            <span className="material-icons mr-1 text-sm">done</span>
+            Done
+          </Button>
+        </div>
+      </div>
+      
+      <Card>
+        <div className="flex border-t border-gray-200">
+          {/* Sidebar */}
+          <div className="w-64 border-r border-gray-200 bg-gray-50">
+            <div className="p-2 space-y-2">
+              <div className={`w-full rounded-md overflow-hidden ${activeSidebarItem === "parameters" ? "bg-blue-100 shadow-sm" : ""}`}>
+                <Button 
+                  variant="ghost"
+                  className="w-full justify-start text-left py-2 px-2 h-auto"
+                  onClick={() => setActiveSidebarItem("parameters")}
+                >
+                  <div className="flex items-center">
+                    <div className="mr-2 w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center">
+                      <span className="material-icons text-sm text-blue-700">settings</span>
+                    </div>
+                    <div>
+                      <span className={`font-medium text-sm ${activeSidebarItem === "parameters" ? "text-blue-700" : "text-gray-700"}`}>
+                        Simulation Parameters
+                      </span>
+                      <p className="text-xs text-gray-600">Initial values & settings</p>
+                    </div>
+                  </div>
+                </Button>
+              </div>
+              
+              <div className={`w-full rounded-md overflow-hidden ${activeSidebarItem === "allocation" ? "bg-green-100 shadow-sm" : ""}`}>
+                <Button 
+                  variant="ghost"
+                  className="w-full justify-start text-left py-2 px-2 h-auto"
+                  onClick={() => setActiveSidebarItem("allocation")}
+                >
+                  <div className="flex items-center">
+                    <div className="mr-2 w-7 h-7 rounded-full bg-green-200 flex items-center justify-center">
+                      <span className="material-icons text-sm text-green-700">pie_chart</span>
+                    </div>
+                    <div>
+                      <span className={`font-medium text-sm ${activeSidebarItem === "allocation" ? "text-green-700" : "text-gray-700"}`}>
+                        Portfolio Allocation
+                      </span>
+                      <p className="text-xs text-gray-600">Asset distribution & risk</p>
+                    </div>
+                  </div>
+                </Button>
+              </div>
+              
+              <div className={`w-full rounded-md overflow-hidden ${activeSidebarItem === "advanced" ? "bg-purple-100 shadow-sm" : ""}`}>
+                <Button 
+                  variant="ghost"
+                  className="w-full justify-start text-left py-2 px-2 h-auto"
+                  onClick={() => setActiveSidebarItem("advanced")}
+                >
+                  <div className="flex items-center">
+                    <div className="mr-2 w-7 h-7 rounded-full bg-purple-200 flex items-center justify-center">
+                      <span className="material-icons text-sm text-purple-700">psychology</span>
+                    </div>
+                    <div>
+                      <span className={`font-medium text-sm ${activeSidebarItem === "advanced" ? "text-purple-700" : "text-gray-700"}`}>
+                        Advanced Options
+                      </span>
+                      <p className="text-xs text-gray-600">Rebalancing & market factors</p>
+                    </div>
+                  </div>
+                </Button>
+              </div>
+              
+              <div className={`w-full rounded-md overflow-hidden ${activeSidebarItem === "results" ? "bg-amber-100 shadow-sm" : ""}`}>
+                <Button 
+                  variant="ghost"
+                  className="w-full justify-start text-left py-2 px-2 h-auto"
+                  onClick={() => {
+                    if (simulationResults) {
+                      setActiveSidebarItem("results");
+                    }
+                  }}
+                  disabled={!simulationResults}
+                >
+                  <div className="flex items-center">
+                    <div className="mr-2 w-7 h-7 rounded-full bg-amber-200 flex items-center justify-center">
+                      <span className="material-icons text-sm text-amber-700">assessment</span>
+                    </div>
+                    <div>
+                      <span className={`font-medium text-sm ${activeSidebarItem === "results" ? "text-amber-700" : "text-gray-700"}`}>
+                        Simulation Results
+                      </span>
+                      <p className="text-xs text-gray-600">Portfolio performance & growth</p>
+                    </div>
+                  </div>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Main content */}
+          <div className="flex-1 p-6">
+            {activeSidebarItem === "parameters" && (
+              <>
+                <h2 className="text-xl font-semibold mb-6">Simulation Parameters</h2>
+                
+                <div className="space-y-6">
+                  <div>
+                    <Label htmlFor="initial-investment" className="text-sm font-medium mb-1 block">Initial Investment (₹)</Label>
+                    <Input 
+                      id="initial-investment"
+                      type="number" 
+                      value={initialInvestment}
+                      onChange={(e) => setInitialInvestment(Number(e.target.value))}
+                      className="h-10 border-2 border-gray-300 rounded-md"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="monthly-sip" className="text-sm font-medium mb-1 block">Monthly SIP Amount (₹)</Label>
+                    <Input 
+                      id="monthly-sip"
+                      type="number" 
+                      value={monthlySIP}
+                      onChange={(e) => setMonthlySIP(Number(e.target.value))}
+                      className="h-10 border-2 border-gray-300 rounded-md"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="investment-years" className="text-sm font-medium mb-1 block">Investment Period (Years)</Label>
+                      <Input 
+                        id="investment-years"
+                        type="number" 
+                        value={years}
+                        onChange={(e) => setYears(Number(e.target.value))}
+                        className="h-10 border-2 border-gray-300 rounded-md"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="inflation-rate" className="text-sm font-medium mb-1 block">Inflation Rate (%)</Label>
+                      <Input 
+                        id="inflation-rate"
+                        type="number" 
+                        value={inflationRate}
+                        onChange={(e) => setInflationRate(Number(e.target.value))}
+                        className="h-10 border-2 border-gray-300 rounded-md"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="risk-profile" className="text-sm font-medium mb-1 block">Risk Profile</Label>
+                    <Select 
+                      value={riskProfile} 
+                      onValueChange={handleRiskProfileChange}
+                    >
+                      <SelectTrigger id="risk-profile" className="h-10 border-2 border-gray-300 rounded-md">
+                        <SelectValue placeholder="Select risk profile" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]" position="popper" align="start">
+                        <SelectItem value="conservative">Conservative (6-8% returns)</SelectItem>
+                        <SelectItem value="moderate">Moderate (10-12% returns)</SelectItem>
+                        <SelectItem value="aggressive">Aggressive (14-16% returns)</SelectItem>
+                        <SelectItem value="custom">Custom Allocation</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="pt-4">
+                    <Button 
+                      onClick={runSimulation}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      Run Simulation
+                    </Button>
+                  </div>
+                  
+                  <div className="mt-8 border-t border-gray-200 pt-6">
+                    <h3 className="text-lg font-medium mb-4">Historical Return Reference</h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Class</th>
+                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">5 Year</th>
+                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">10 Year</th>
+                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">15 Year</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {Object.entries(HISTORICAL_DATA).map(([asset, data]) => (
+                            <tr key={asset}>
+                              <td className="px-3 py-2 whitespace-nowrap capitalize">{asset}</td>
+                              <td className="px-3 py-2 whitespace-nowrap text-right">{data.annualizedReturns[0].returns}%</td>
+                              <td className="px-3 py-2 whitespace-nowrap text-right">{data.annualizedReturns[1].returns}%</td>
+                              <td className="px-3 py-2 whitespace-nowrap text-right">{data.annualizedReturns[2].returns}%</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Source: Historical market data for major Indian asset classes (2000-2024)
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {activeSidebarItem === "allocation" && (
+              <>
+                <h2 className="text-xl font-semibold mb-6">Portfolio Allocation</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div>
+                    <div className="space-y-6">
+                      {ASSETS.map(asset => (
+                        <div key={asset.id} className="space-y-2">
+                          <div className="flex justify-between">
+                            <Label className="text-sm font-medium">{asset.name}</Label>
+                            <span className="text-sm font-semibold">{customAllocation[asset.id]}%</span>
+                          </div>
+                          <Slider
+                            defaultValue={[customAllocation[asset.id]]}
+                            max={100}
+                            step={1}
+                            onValueChange={(value) => handleAllocationChange(asset.id, value[0])}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="mt-8">
+                      <h3 className="text-lg font-medium mb-2">Expected Returns</h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Based on historical data for your selected allocation
+                      </p>
+                      
+                      <div className="space-y-4">
+                        <div className="flex justify-between text-sm">
+                          <span>Conservative Estimate (25th percentile)</span>
+                          <span className="font-medium">8.7%</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Average Estimate (50th percentile)</span>
+                          <span className="font-medium">10.5%</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Optimistic Estimate (75th percentile)</span>
+                          <span className="font-medium">12.9%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Portfolio Visualization</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={ASSETS.map(asset => ({
+                              name: asset.name,
+                              value: customAllocation[asset.id]
+                            }))}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                            label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {ASSETS.map((asset, index) => (
+                              <Cell key={`cell-${index}`} fill={`var(--${asset.color.replace('bg-', '')})`} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value) => `${value}%`} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    
+                    <div className="mt-6">
+                      <h3 className="text-lg font-medium mb-2">Risk Assessment</h3>
+                      <div className="border rounded-md p-4">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm">Low Risk</span>
+                          <span className="text-sm">High Risk</span>
+                        </div>
+                        <Progress className="h-2 mb-4" value={
+                          customAllocation.equity * 0.8 + 
+                          customAllocation.gold * 0.5 + 
+                          customAllocation.other * 0.7
+                        } />
+                        
+                        <div className="space-y-2 mt-4">
+                          <div className="flex justify-between text-sm">
+                            <span>Expected Volatility</span>
+                            <span className="font-medium">{calculateVolatility()}%</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Maximum Drawdown (Potential Loss)</span>
+                            <span className="font-medium">{calculateMaxDrawdown()}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {activeSidebarItem === "advanced" && (
+              <>
+                <h2 className="text-xl font-semibold mb-6">Advanced Options</h2>
+                
+                <div className="space-y-6">
+                  <div>
+                    <Label htmlFor="rebalancing-frequency" className="text-sm font-medium mb-1 block">Portfolio Rebalancing Frequency</Label>
+                    <Select 
+                      value={rebalancingFrequency} 
+                      onValueChange={setRebalancingFrequency}
+                    >
+                      <SelectTrigger id="rebalancing-frequency" className="h-10 border-2 border-gray-300 rounded-md">
+                        <SelectValue placeholder="Select rebalancing frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="never">Never (Buy and Hold)</SelectItem>
+                        <SelectItem value="yearly">Yearly</SelectItem>
+                        <SelectItem value="half-yearly">Half-Yearly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Rebalancing involves selling some assets and buying others to maintain your target allocation.
+                    </p>
+                  </div>
+                  
+                  <div className="border-t border-gray-200 pt-6">
+                    <h3 className="text-lg font-medium mb-4">Historical Performance Reference</h3>
+                    
+                    <div className="space-y-6">
+                      {Object.entries(HISTORICAL_DATA).map(([assetType, data]) => (
+                        <div key={assetType} className="border rounded-md p-4">
+                          <h4 className="font-medium mb-2 capitalize">{assetType}</h4>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span>15-Year Average Return</span>
+                              <span className="font-medium">{data.annualizedReturns[2].returns}%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Best Year ({data.bestYear.year})</span>
+                              <span className="font-medium text-green-600">+{data.bestYear.returns}%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Worst Year ({data.worstYear.year})</span>
+                              <span className="font-medium text-red-600">{data.worstYear.returns}%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Volatility</span>
+                              <span className="font-medium">{data.volatility}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {activeSidebarItem === "results" && simulationResults && (
+              <>
+                <h2 className="text-xl font-semibold mb-6">Simulation Results</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <Card className="shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Projected Portfolio Value</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-blue-600">
+                        {formatCurrency(simulationResults.endValue)}
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        After {years} years (Nominal Value)
+                      </p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Inflation-Adjusted Value</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-green-600">
+                        {formatCurrency(simulationResults.inflationAdjustedEndValue)}
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        In today's purchasing power
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                  <Card className="shadow-sm">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm">Total Invested</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-lg font-semibold">
+                        {formatCurrency(simulationResults.totalInvested)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="shadow-sm">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm">Investment Growth</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-lg font-semibold text-green-600">
+                        {formatCurrency(simulationResults.endValue - simulationResults.totalInvested)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="shadow-sm">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm">Annualized Return (CAGR)</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-lg font-semibold text-blue-600">
+                        {formatPercentage(parseFloat(simulationResults.cagr))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                <Tabs defaultValue="chart" className="mb-8">
+                  <TabsList>
+                    <TabsTrigger value="chart">Growth Chart</TabsTrigger>
+                    <TabsTrigger value="table">Yearly Breakdown</TabsTrigger>
+                    <TabsTrigger value="metrics">Risk Metrics</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="chart" className="pt-4">
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          data={simulationResults.yearlyData}
+                          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="year" label={{ value: 'Year', position: 'insideBottomRight', offset: -5 }} tick={{fontSize: 12}} />
+                          <YAxis tickFormatter={(value) => `₹${(value/100000).toFixed(1)}L`} />
+                          <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                          <Legend />
+                          <Area 
+                            type="monotone" 
+                            dataKey="investedAmount" 
+                            stackId="1"
+                            name="Amount Invested" 
+                            fill="var(--primary-light)" 
+                            stroke="var(--primary)"
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="nominalGain" 
+                            stackId="1"
+                            name="Investment Growth" 
+                            fill="var(--green-light)" 
+                            stroke="var(--green)"
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="inflationAdjustedValue" 
+                            name="Inflation-Adjusted Value" 
+                            fill="none"
+                            stroke="var(--amber)"
+                            strokeDasharray="5 5"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="table" className="pt-4">
+                    <div className="border rounded-md overflow-hidden">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Invested</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Projected Value</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Growth</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">After Inflation</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {simulationResults.yearlyData.map((yearData: any) => (
+                            <tr key={yearData.year}>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{yearData.year}</td>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 text-right">{formatCurrency(yearData.investedAmount)}</td>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(yearData.projectedValue)}</td>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-green-600 text-right">{formatCurrency(yearData.nominalGain)}</td>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-amber-600 text-right">{formatCurrency(yearData.inflationAdjustedValue)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="metrics" className="pt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-base">Risk Metrics</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            <div className="flex justify-between">
+                              <span className="text-sm">Volatility</span>
+                              <span className="font-medium">{simulationResults.volatility}%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm">Maximum Drawdown (Potential Loss)</span>
+                              <span className="font-medium text-red-600">{simulationResults.maxDrawdown}%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm">Sharpe Ratio</span>
+                              <span className="font-medium">{simulationResults.sharpeRatio}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-base">Performance Extremes</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            <div className="flex justify-between">
+                              <span className="text-sm">Best Possible Year</span>
+                              <span className="font-medium text-green-600">{formatPercentage(parseFloat(simulationResults.bestYear))}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm">Worst Possible Year</span>
+                              <span className="font-medium text-red-600">{formatPercentage(parseFloat(simulationResults.worstYear))}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                    
+                    <div className="mt-6">
+                      <h3 className="text-lg font-medium mb-4">Asset Allocation</h3>
+                      <div className="flex items-center gap-6">
+                        <div className="w-40 h-40">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={ASSETS.map(asset => ({
+                                  name: asset.name,
+                                  value: simulationResults.assetAllocation[asset.id]
+                                }))}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={30}
+                                outerRadius={60}
+                                fill="#8884d8"
+                                dataKey="value"
+                                label={({name, percent}) => `${(percent * 100).toFixed(0)}%`}
+                              >
+                                {ASSETS.map((asset, index) => (
+                                  <Cell key={`cell-${index}`} fill={`var(--${asset.color.replace('bg-', '')})`} />
+                                ))}
+                              </Pie>
+                              <Tooltip formatter={(value) => `${value}%`} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="flex-1">
+                          {ASSETS.map((asset) => (
+                            <div key={asset.id} className="flex items-center mb-2">
+                              <div className={`w-3 h-3 rounded-full mr-2 ${asset.color}`}></div>
+                              <span className="text-sm">{asset.name}</span>
+                              <span className="text-sm font-medium ml-auto">{simulationResults.assetAllocation[asset.id]}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+                
+                <div className="bg-blue-50 rounded-md p-4 border border-blue-200">
+                  <h3 className="text-lg font-medium text-blue-800 mb-2">Key Takeaways</h3>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-blue-700">
+                    <li>Your portfolio is projected to grow to {formatCurrency(simulationResults.endValue)} in {years} years.</li>
+                    <li>After adjusting for inflation ({inflationRate}% annually), the value would be {formatCurrency(simulationResults.inflationAdjustedEndValue)} in today's money.</li>
+                    <li>The expected annualized return (CAGR) is {formatPercentage(parseFloat(simulationResults.cagr))}.</li>
+                    <li>In a worst-case scenario, your portfolio could experience a temporary decline of up to {simulationResults.maxDrawdown}%.</li>
+                    <li>Regular investments through SIP of ₹{monthlySIP.toLocaleString()} per month significantly enhance your returns through the power of compounding.</li>
+                  </ul>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </Card>
+      
+      {/* Disclaimer section at the bottom */}
+      <div className="mt-6 mb-8">
+        <FinancialDisclaimer 
+          variant="default" 
+          calculatorType="generic"
+          size="md"
+        />
+      </div>
+    </div>
+  );
+}

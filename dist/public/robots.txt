@@ -1,0 +1,96 @@
+User-agent: *
+Allow: /
+
+# Crawl-delay for better server performance
+Crawl-delay: 1
+
+# Block irrelevant paths
+Disallow: /api/
+Disallow: /temp/
+Disallow: /src/
+Disallow: /*?*utm_*
+Disallow: /*?*sessionid*
+Disallow: /*?*fbclid*
+
+# Allow all major search engines and AI crawlers
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 2
+
+User-agent: Slurp
+Allow: /
+Crawl-delay: 2
+
+User-agent: DuckDuckBot
+Allow: /
+Crawl-delay: 2
+
+User-agent: Baiduspider
+Allow: /
+Crawl-delay: 3
+
+User-agent: YandexBot
+Allow: /
+Crawl-delay: 2
+
+# AI and content crawlers
+User-agent: GPTBot
+Allow: /
+Crawl-delay: 2
+
+User-agent: ChatGPT-User
+Allow: /
+Crawl-delay: 2
+
+User-agent: OpenAI-SearchBot
+Allow: /
+Crawl-delay: 2
+
+User-agent: ClaudeBot
+Allow: /
+Crawl-delay: 2
+
+User-agent: anthropic-ai
+Allow: /
+Crawl-delay: 2
+
+User-agent: PerplexityBot
+Allow: /
+Crawl-delay: 2
+
+User-agent: YouBot
+Allow: /
+Crawl-delay: 2
+
+# Social media crawlers
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+# SEO and analytics crawlers
+User-agent: AhrefsBot
+Allow: /
+Crawl-delay: 3
+
+User-agent: SemrushBot
+Allow: /
+Crawl-delay: 3
+
+User-agent: MJ12bot
+Allow: /
+Crawl-delay: 5
+
+# Sitemap location
+Sitemap: https://dollarmento.com/sitemap.xml
+
+# Host directive for preferred domain
+Host: https://dollarmento.com

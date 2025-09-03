@@ -1,0 +1,1260 @@
+import React, { useState, useEffect } from "react";
+import { 
+  Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle 
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { 
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
+} from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { 
+  Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow 
+} from "@/components/ui/table";
+import { 
+  Info, AlertTriangle, Check, ArrowRight, Calculator, FileText, Download, 
+  BarChart, PieChart, TrendingUp, Clipboard, Percent 
+} from "lucide-react";
+import { format } from "date-fns";
+import { 
+  BarChart as RechartsBarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from "recharts";
+
+// Types for our entry objects
+interface CapitalGainEntry {
+  id: string;
+  name: string;
+  type: string;
+  purchasePrice: number;
+  currentPrice: number;
+  difference: number;
+  dateAdded: string;
+}
+
+// Format currency function
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0
+  }).format(amount);
+};
+
+export default function TaxHarvesting() {
+  // State for storing entries
+  const [stcgEntries, setStcgEntries] = useState<CapitalGainEntry[]>([]);
+  const [ltcgEntries, setLtcgEntries] = useState<CapitalGainEntry[]>([]);
+  const [showResults, setShowResults] = useState<boolean>(false);
+  const [showNoDataWarning, setShowNoDataWarning] = useState<boolean>(false);
+  
+  // Form state
+  const [taxBracket, setTaxBracket] = useState<string>("5%");
+  
+  // STCG form fields
+  const [stcgName, setStcgName] = useState<string>("");
+  const [stcgType, setStcgType] = useState<string>("Listed Stocks (Equity)");
+  const [stcgPurchasePrice, setStcgPurchasePrice] = useState<number>(100000);
+  const [stcgCurrentPrice, setStcgCurrentPrice] = useState<number>(90000);
+  
+  // LTCG form fields
+  const [ltcgName, setLtcgName] = useState<string>("");
+  const [ltcgType, setLtcgType] = useState<string>("Listed Stocks (Equity)");
+  const [ltcgPurchasePrice, setLtcgPurchasePrice] = useState<number>(100000);
+  const [ltcgCurrentPrice, setLtcgCurrentPrice] = useState<number>(90000);
+
+  // Tax rate information based on investment type
+  const stcgTaxInfo: Record<string, string> = {
+    "Listed Stocks (Equity)": "15% STCG tax rate",
+    "Equity Mutual Funds & ETFs": "15% STCG tax rate",
+    "Index & Sectoral Funds": "15% STCG tax rate",
+    "Real Estate": "As per income tax slab",
+    "REITs": "As per income tax slab",
+    "Gold ETFs & SGBs": "As per income tax slab"
+  };
+
+  const ltcgTaxInfo: Record<string, string> = {
+    "Listed Stocks (Equity)": "10% LTCG tax rate (above ₹1 lakh)",
+    "Equity Mutual Funds & ETFs": "10% LTCG tax rate (above ₹1 lakh)",
+    "Index & Sectoral Funds": "10% LTCG tax rate (above ₹1 lakh)",
+    "Real Estate": "As per income tax slab",
+    "REITs": "As per income tax slab",
+    "Gold ETFs & SGBs": "As per income tax slab"
+  };
+
+  // Calculate summaries for final calculations
+  const stGainTotal = stcgEntries.reduce((total, entry) => 
+    total + (entry.difference > 0 ? entry.difference : 0), 0);
+  
+  const stLossTotal = stcgEntries.reduce((total, entry) => 
+    total + (entry.difference < 0 ? Math.abs(entry.difference) : 0), 0);
+  
+  const ltGainTotal = ltcgEntries.reduce((total, entry) => 
+    total + (entry.difference > 0 ? entry.difference : 0), 0);
+  
+  const ltLossTotal = ltcgEntries.reduce((total, entry) => 
+    total + (entry.difference < 0 ? Math.abs(entry.difference) : 0), 0);
+
+  // Net calculations
+  const netStGainLoss = stGainTotal - stLossTotal;
+  const netLtGainLoss = ltGainTotal - ltLossTotal;
+
+  // Tax calculations
+  const stcgTaxRate = 0.15; // 15% for equity
+  const ltcgTaxRate = 0.10; // 10% for equity (above 1 lakh)
+  const ltcgExemption = 100000; // 1 lakh exemption for LTCG
+
+  // Calculate tax without optimization
+  const stcgTaxWithoutOpt = Math.max(0, stGainTotal * stcgTaxRate);
+  
+  // LTCG tax applies only above 1 lakh
+  const ltcgTaxWithoutOpt = Math.max(0, (ltGainTotal > ltcgExemption ? 
+    (ltGainTotal - ltcgExemption) * ltcgTaxRate : 0));
+  
+  const totalTaxWithoutOpt = stcgTaxWithoutOpt + ltcgTaxWithoutOpt;
+
+  // Calculate tax with optimization (after harvesting)
+  const stcgTaxWithOpt = Math.max(0, netStGainLoss * stcgTaxRate);
+  
+  // For LTCG, short-term losses can offset long-term gains
+  const remainingStLoss = Math.max(0, stLossTotal - stGainTotal);
+  const ltGainAfterStLoss = Math.max(0, ltGainTotal - remainingStLoss);
+  
+  const ltcgTaxWithOpt = Math.max(0, (ltGainAfterStLoss > ltcgExemption ? 
+    (ltGainAfterStLoss - ltcgExemption) * ltcgTaxRate : 0));
+  
+  const totalTaxWithOpt = stcgTaxWithOpt + ltcgTaxWithOpt;
+  
+  // Tax saved calculation
+  const taxSaved = totalTaxWithoutOpt - totalTaxWithOpt;
+
+  // Add STCG entry
+  const addStcgEntry = () => {
+    if (!stcgName.trim()) return;
+    
+    const newEntry: CapitalGainEntry = {
+      id: Date.now().toString(),
+      name: stcgName,
+      type: stcgType,
+      purchasePrice: stcgPurchasePrice,
+      currentPrice: stcgCurrentPrice,
+      difference: stcgCurrentPrice - stcgPurchasePrice,
+      dateAdded: new Date().toISOString()
+    };
+    
+    setStcgEntries([newEntry, ...stcgEntries]);
+    
+    // Reset form
+    setStcgName("");
+    setStcgPurchasePrice(100000);
+    setStcgCurrentPrice(90000);
+  };
+
+  // Add LTCG entry
+  const addLtcgEntry = () => {
+    if (!ltcgName.trim()) return;
+    
+    const newEntry: CapitalGainEntry = {
+      id: Date.now().toString(),
+      name: ltcgName,
+      type: ltcgType,
+      purchasePrice: ltcgPurchasePrice,
+      currentPrice: ltcgCurrentPrice,
+      difference: ltcgCurrentPrice - ltcgPurchasePrice,
+      dateAdded: new Date().toISOString()
+    };
+    
+    setLtcgEntries([newEntry, ...ltcgEntries]);
+    
+    // Reset form
+    setLtcgName("");
+    setLtcgPurchasePrice(100000);
+    setLtcgCurrentPrice(90000);
+  };
+
+  // Delete entry functions
+  const deleteStcgEntry = (id: string) => {
+    setStcgEntries(stcgEntries.filter(entry => entry.id !== id));
+  };
+
+  const deleteLtcgEntry = (id: string) => {
+    setLtcgEntries(ltcgEntries.filter(entry => entry.id !== id));
+  };
+  
+  // Tax optimization recommendations based on the current state
+  const getTaxOptimizationRecommendations = () => {
+    const recommendations = [];
+    
+    if (stGainTotal > 0 && ltLossTotal > 0) {
+      recommendations.push(
+        "Consider booking short-term losses to offset short-term gains, as they're taxed at a higher rate."
+      );
+    }
+    
+    if (ltGainTotal > ltcgExemption) {
+      recommendations.push(
+        `Your long-term gains exceed the ₹1 lakh exemption limit by ${formatCurrency(ltGainTotal - ltcgExemption)}. Consider booking some long-term losses.`
+      );
+    }
+    
+    if (stLossTotal > 0 && stcgEntries.length > 0) {
+      recommendations.push(
+        "You've booked short-term losses which can offset both short-term and long-term gains, maximizing your tax benefits."
+      );
+    }
+    
+    if (ltLossTotal > 0 && stGainTotal > 0 && ltGainTotal < ltcgExemption) {
+      recommendations.push(
+        "Since your long-term gains are below the ₹1 lakh exemption, consider using your long-term losses in future assessment years when you might have taxable long-term gains."
+      );
+    }
+    
+    if (recommendations.length === 0) {
+      recommendations.push(
+        "Based on your current entries, no specific tax harvesting opportunities are identified. Add more entries to generate personalized recommendations."
+      );
+    }
+    
+    return recommendations;
+  };
+
+  // Data for summary charts
+  const prepareSummaryChartData = () => {
+    return [
+      { name: 'ST Gains', value: stGainTotal },
+      { name: 'ST Losses', value: stLossTotal },
+      { name: 'LT Gains', value: ltGainTotal },
+      { name: 'LT Losses', value: ltLossTotal },
+    ];
+  };
+
+  // Data for tax comparison chart
+  const prepareTaxComparisonData = () => {
+    return [
+      { name: 'Without Harvesting', value: totalTaxWithoutOpt },
+      { name: 'With Harvesting', value: totalTaxWithOpt },
+      { name: 'Tax Saved', value: taxSaved },
+    ];
+  };
+
+  // Main component render
+  return (
+    <div className="container mx-auto py-8 px-4 max-w-6xl">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl shadow-sm border border-blue-100 mb-8">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold flex items-center text-blue-800">
+            <Calculator className="mr-3 h-7 w-7 text-blue-600" />
+            Tax Harvesting Calculator
+          </h1>
+          <p className="text-gray-600 max-w-3xl">
+            Optimize your tax savings by strategically managing your capital gains and losses. 
+            Use this calculator to track and plan your tax harvesting strategy.
+          </p>
+        </div>
+      </div>
+      
+      <Alert className="mb-8 border-amber-200 bg-amber-50 text-amber-800 rounded-lg shadow-sm">
+        <AlertTriangle className="h-5 w-5 text-amber-500" />
+        <AlertDescription className="text-sm">
+          <strong>Important Disclaimer:</strong> The tax calculations and projections shown are based on current tax laws and historical data. Tax 
+          laws can change, and past performance does not guarantee future results. This tool is for educational purposes only. 
+          Please consult with qualified tax advisors for personalized tax advice and investment decisions.
+        </AlertDescription>
+      </Alert>
+      
+      {/* Tax Bracket Selection */}
+      <div className="mb-8 bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+        <div className="flex items-center mb-3">
+          <Percent className="h-5 w-5 mr-2 text-blue-600" />
+          <h2 className="text-lg font-medium">Income Tax Slab</h2>
+        </div>
+        
+        <label className="block text-sm mb-2 text-gray-600">
+          Select your income tax bracket to personalize calculations
+        </label>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          {["5%", "10%", "15%", "20%", "30%"].map((bracket) => (
+            <button
+              key={bracket}
+              onClick={() => setTaxBracket(bracket)}
+              className={`py-2 px-4 rounded-md border transition-all ${
+                taxBracket === bracket 
+                  ? "bg-blue-100 border-blue-200 text-blue-700 font-medium shadow-sm" 
+                  : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              {bracket}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-3 flex items-center">
+          <Info className="h-3 w-3 mr-1 text-blue-500" />
+          This helps customize calculations for non-equity investments taxed as per your income slab.
+        </p>
+      </div>
+      
+      {/* STCG Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold flex items-center text-blue-800">
+            <BarChart className="h-5 w-5 mr-2 text-blue-600" />
+            Short-Term Capital Gains
+          </h2>
+          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1.5 rounded-full">
+            Held &lt; 1 year
+          </span>
+        </div>
+        
+        <Card className="mb-4 border-blue-200 shadow-sm">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200">
+            <CardTitle className="flex items-center text-blue-800">
+              <BarChart className="h-4 w-4 mr-2 text-blue-600" />
+              Short-Term Capital Gains
+            </CardTitle>
+            <CardDescription className="text-blue-700">
+              Record short-term investments held for less than the qualifying period.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="stcg-name" className="block text-sm font-medium mb-1">
+                      Investment Name
+                    </label>
+                    <Input
+                      id="stcg-name"
+                      placeholder="e.g. Reliance Industries"
+                      value={stcgName}
+                      onChange={(e) => setStcgName(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="stcg-type" className="block text-sm font-medium mb-1">
+                      Investment Type
+                    </label>
+                    <Select 
+                      value={stcgType} 
+                      onValueChange={setStcgType}
+                    >
+                      <SelectTrigger id="stcg-type">
+                        <SelectValue placeholder="Select investment type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Listed Stocks (Equity)">Listed Stocks (Equity)</SelectItem>
+                        <SelectItem value="Equity Mutual Funds & ETFs">Equity Mutual Funds & ETFs</SelectItem>
+                        <SelectItem value="Index & Sectoral Funds">Index & Sectoral Funds</SelectItem>
+                        <SelectItem value="Real Estate">Real Estate</SelectItem>
+                        <SelectItem value="REITs">REITs</SelectItem>
+                        <SelectItem value="Gold ETFs & SGBs">Gold ETFs & SGBs</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {stcgTaxInfo[stcgType]}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Purchase Price
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={stcgPurchasePrice}
+                      onChange={(e) => setStcgPurchasePrice(Number(e.target.value))}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Current Price / Sale Price
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={stcgCurrentPrice}
+                      onChange={(e) => setStcgCurrentPrice(Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <div className="p-4 bg-slate-50 rounded-md mb-4">
+                  <h4 className="font-medium mb-3">Investment Details</h4>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Name:</span>
+                      <span className="font-medium">{stcgName || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Type:</span>
+                      <span className="font-medium">{stcgType}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Purchase Price:</span>
+                      <span className="font-medium">{formatCurrency(stcgPurchasePrice)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Current Price:</span>
+                      <span className="font-medium">{formatCurrency(stcgCurrentPrice)}</span>
+                    </div>
+                    <div className="border-t pt-2 mt-2 flex justify-between">
+                      <span className="font-medium">Difference:</span>
+                      <span className={`font-bold ${stcgCurrentPrice - stcgPurchasePrice < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {formatCurrency(stcgCurrentPrice - stcgPurchasePrice)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={addStcgEntry} 
+                  disabled={!stcgName.trim()}
+                  className="w-full"
+                >
+                  Save STCG Entry
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* STCG entries will be displayed before the Calculate button */}
+      </div>
+      
+      {/* LTCG Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold flex items-center text-indigo-800">
+            <PieChart className="h-5 w-5 mr-2 text-indigo-600" />
+            Long-Term Capital Gains
+          </h2>
+          <span className="bg-indigo-100 text-indigo-800 text-xs font-medium px-3 py-1.5 rounded-full">
+            Held &gt; 1 year
+          </span>
+        </div>
+        
+        <Card className="mb-4 border-indigo-200 shadow-sm">
+          <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-b border-indigo-200">
+            <CardTitle className="flex items-center text-indigo-800">
+              <PieChart className="h-4 w-4 mr-2 text-indigo-600" />
+              Long-Term Capital Gains
+            </CardTitle>
+            <CardDescription className="text-indigo-700">
+              Record long-term investments held for more than the qualifying period.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="ltcg-name" className="block text-sm font-medium mb-1">
+                      Investment Name
+                    </label>
+                    <Input
+                      id="ltcg-name"
+                      placeholder="e.g. HDFC Bank"
+                      value={ltcgName}
+                      onChange={(e) => setLtcgName(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="ltcg-type" className="block text-sm font-medium mb-1">
+                      Investment Type
+                    </label>
+                    <Select 
+                      value={ltcgType} 
+                      onValueChange={setLtcgType}
+                    >
+                      <SelectTrigger id="ltcg-type">
+                        <SelectValue placeholder="Select investment type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Listed Stocks (Equity)">Listed Stocks (Equity)</SelectItem>
+                        <SelectItem value="Equity Mutual Funds & ETFs">Equity Mutual Funds & ETFs</SelectItem>
+                        <SelectItem value="Index & Sectoral Funds">Index & Sectoral Funds</SelectItem>
+                        <SelectItem value="Real Estate">Real Estate</SelectItem>
+                        <SelectItem value="REITs">REITs</SelectItem>
+                        <SelectItem value="Gold ETFs & SGBs">Gold ETFs & SGBs</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {ltcgTaxInfo[ltcgType]}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Purchase Price
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={ltcgPurchasePrice}
+                      onChange={(e) => setLtcgPurchasePrice(Number(e.target.value))}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Current Price / Sale Price
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={ltcgCurrentPrice}
+                      onChange={(e) => setLtcgCurrentPrice(Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <div className="p-4 bg-slate-50 rounded-md mb-4">
+                  <h4 className="font-medium mb-3">Investment Details</h4>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Name:</span>
+                      <span className="font-medium">{ltcgName || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Type:</span>
+                      <span className="font-medium">{ltcgType}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Purchase Price:</span>
+                      <span className="font-medium">{formatCurrency(ltcgPurchasePrice)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Current Price:</span>
+                      <span className="font-medium">{formatCurrency(ltcgCurrentPrice)}</span>
+                    </div>
+                    <div className="border-t pt-2 mt-2 flex justify-between">
+                      <span className="font-medium">Difference:</span>
+                      <span className={`font-bold ${ltcgCurrentPrice - ltcgPurchasePrice < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {formatCurrency(ltcgCurrentPrice - ltcgPurchasePrice)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={addLtcgEntry} 
+                  disabled={!ltcgName.trim()}
+                  className="w-full"
+                >
+                  Save LTCG Entry
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* LTCG entries are now displayed before the Calculate button */}
+        
+        {/* Display added entries before Calculate Button */}
+        {!showResults && (stcgEntries.length > 0 || ltcgEntries.length > 0) && (
+          <div className="mb-8 mt-4">
+            <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
+              <div className="p-4 border-b border-gray-200 bg-blue-50">
+                <h3 className="text-lg font-semibold flex items-center text-blue-800">
+                  <Clipboard className="h-5 w-5 mr-2 text-blue-600" />
+                  Added Investment Entries
+                </h3>
+              </div>
+              
+              {/* STCG Entries */}
+              {stcgEntries.length > 0 && (
+                <div className="p-4 border-b border-gray-100">
+                  <h4 className="text-base font-medium mb-3 flex items-center text-blue-700">
+                    <BarChart className="h-4 w-4 mr-2 text-blue-500" />
+                    Short-Term Capital Gains ({stcgEntries.length})
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Investment Name</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Purchase Price</TableHead>
+                          <TableHead>Current/Sale Price</TableHead>
+                          <TableHead>Gain/Loss</TableHead>
+                          <TableHead className="w-[80px]">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {stcgEntries.map(entry => (
+                          <TableRow key={entry.id}>
+                            <TableCell>{entry.name}</TableCell>
+                            <TableCell className="text-xs">{entry.type}</TableCell>
+                            <TableCell>{formatCurrency(entry.purchasePrice)}</TableCell>
+                            <TableCell>{formatCurrency(entry.currentPrice)}</TableCell>
+                            <TableCell className={entry.difference < 0 ? 'text-red-600' : 'text-green-600'}>
+                              {formatCurrency(entry.difference)}
+                            </TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => deleteStcgEntry(entry.id)}
+                                className="h-8 w-8"
+                              >
+                                <svg 
+                                  width="15" 
+                                  height="15" 
+                                  viewBox="0 0 15 15" 
+                                  fill="none" 
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="text-red-500"
+                                >
+                                  <path 
+                                    d="M5.5 1C5.22386 1 5 1.22386 5 1.5C5 1.77614 5.22386 2 5.5 2H9.5C9.77614 2 10 1.77614 10 1.5C10 1.22386 9.77614 1 9.5 1H5.5ZM3 3.5C3 3.22386 3.22386 3 3.5 3H11.5C11.7761 3 12 3.22386 12 3.5C12 3.77614 11.7761 4 11.5 4H3.5C3.22386 4 3 3.77614 3 3.5ZM3.5 5C3.77614 5 4 5.22386 4 5.5V10.5C4 10.7761 4.22386 11 4.5 11H10.5C10.7761 11 11 10.7761 11 10.5V5.5C11 5.22386 11.2239 5 11.5 5C11.7761 5 12 5.22386 12 5.5V10.5C12 11.3284 11.3284 12 10.5 12H4.5C3.67157 12 3 11.3284 3 10.5V5.5C3 5.22386 3.22386 5 3.5 5Z" 
+                                    fill="currentColor" 
+                                    fillRule="evenodd" 
+                                    clipRule="evenodd">
+                                  </path>
+                                </svg>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+              
+              {/* LTCG Entries */}
+              {ltcgEntries.length > 0 && (
+                <div className="p-4">
+                  <h4 className="text-base font-medium mb-3 flex items-center text-indigo-700">
+                    <PieChart className="h-4 w-4 mr-2 text-indigo-500" />
+                    Long-Term Capital Gains ({ltcgEntries.length})
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Investment Name</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Purchase Price</TableHead>
+                          <TableHead>Current/Sale Price</TableHead>
+                          <TableHead>Gain/Loss</TableHead>
+                          <TableHead className="w-[80px]">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {ltcgEntries.map(entry => (
+                          <TableRow key={entry.id}>
+                            <TableCell>{entry.name}</TableCell>
+                            <TableCell className="text-xs">{entry.type}</TableCell>
+                            <TableCell>{formatCurrency(entry.purchasePrice)}</TableCell>
+                            <TableCell>{formatCurrency(entry.currentPrice)}</TableCell>
+                            <TableCell className={entry.difference < 0 ? 'text-red-600' : 'text-green-600'}>
+                              {formatCurrency(entry.difference)}
+                            </TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => deleteLtcgEntry(entry.id)}
+                                className="h-8 w-8"
+                              >
+                                <svg 
+                                  width="15" 
+                                  height="15" 
+                                  viewBox="0 0 15 15" 
+                                  fill="none" 
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="text-red-500"
+                                >
+                                  <path 
+                                    d="M5.5 1C5.22386 1 5 1.22386 5 1.5C5 1.77614 5.22386 2 5.5 2H9.5C9.77614 2 10 1.77614 10 1.5C10 1.22386 9.77614 1 9.5 1H5.5ZM3 3.5C3 3.22386 3.22386 3 3.5 3H11.5C11.7761 3 12 3.22386 12 3.5C12 3.77614 11.7761 4 11.5 4H3.5C3.22386 4 3 3.77614 3 3.5ZM3.5 5C3.77614 5 4 5.22386 4 5.5V10.5C4 10.7761 4.22386 11 4.5 11H10.5C10.7761 11 11 10.7761 11 10.5V5.5C11 5.22386 11.2239 5 11.5 5C11.7761 5 12 5.22386 12 5.5V10.5C12 11.3284 11.3284 12 10.5 12H4.5C3.67157 12 3 11.3284 3 10.5V5.5C3 5.22386 3.22386 5 3.5 5Z" 
+                                    fill="currentColor" 
+                                    fillRule="evenodd" 
+                                    clipRule="evenodd">
+                                  </path>
+                                </svg>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Calculate Button as shown in the image */}
+        {!showResults && (
+          <div className="flex flex-col items-center mt-6">
+            <Button 
+              onClick={() => {
+                if (stcgEntries.length === 0 && ltcgEntries.length === 0) {
+                  setShowNoDataWarning(true);
+                  // Auto-hide warning after 5 seconds
+                  setTimeout(() => setShowNoDataWarning(false), 5000);
+                } else {
+                  setShowResults(true);
+                  setShowNoDataWarning(false);
+                }
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-6 text-lg"
+              size="lg"
+            >
+              <Calculator className="mr-2 h-5 w-5" />
+              Calculate
+            </Button>
+            
+            {showNoDataWarning && (
+              <Alert className="mt-4 border-amber-200 bg-amber-50 text-amber-800 rounded-lg shadow-sm w-full max-w-md">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <AlertDescription className="text-sm">
+                  Please add at least one short-term or long-term capital gain entry before calculating.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Final Calculation Section - Only visible after Calculate is clicked */}
+      {showResults && (
+        <div className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold flex items-center text-green-800">
+              <Calculator className="h-6 w-6 mr-2 text-green-600" />
+              Tax Harvesting Strategy Results
+            </h2>
+            <span className="bg-green-100 text-green-800 text-xs font-medium px-3 py-1.5 rounded-full">
+              Smart Analysis
+            </span>
+          </div>
+        
+        <Card className="border-green-200 shadow-md">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-green-100 border-b border-green-200">
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="flex items-center text-green-800">
+                  <TrendingUp className="mr-2 h-5 w-5 text-green-600" />
+                  Tax Optimization Strategy
+                </CardTitle>
+                <CardDescription className="text-green-700">
+                  Summary of your capital gains, losses, and optimized tax-saving strategy
+                </CardDescription>
+              </div>
+              
+              <div className="flex gap-2">
+                {!showResults ? (
+                  <Button 
+                    onClick={() => {
+                      if (stcgEntries.length === 0 && ltcgEntries.length === 0) {
+                        setShowNoDataWarning(true);
+                        // Auto-hide warning after 5 seconds
+                        setTimeout(() => setShowNoDataWarning(false), 5000);
+                      } else {
+                        setShowResults(true);
+                        setShowNoDataWarning(false);
+                      }
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Calculator className="mr-2 h-4 w-4" />
+                    Calculate
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={() => setShowResults(false)} 
+                    variant="outline"
+                    className="border-green-600 text-green-700"
+                  >
+                    Edit Entries
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {(stcgEntries.length > 0 || ltcgEntries.length > 0) && showResults ? (
+              <>
+                {/* Summary Section - 2 Columns */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                  {/* Left column - Summary */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Summary of Gains & Losses</h3>
+                    
+                    <div className="space-y-6">
+                      {/* STCG Summary */}
+                      <div className="p-4 bg-slate-50 rounded-md">
+                        <h4 className="font-medium mb-3 flex items-center">
+                          <BarChart className="h-4 w-4 mr-2 text-purple-500" />
+                          Short-term Capital Gains Summary
+                        </h4>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total STCG:</span>
+                              <span className="font-medium text-green-600">{formatCurrency(stGainTotal)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total STCL:</span>
+                              <span className="font-medium text-red-600">{formatCurrency(stLossTotal)}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Net ST Gain/Loss:</span>
+                              <span className={`font-bold ${netStGainLoss < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                {formatCurrency(netStGainLoss)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Tax Rate:</span>
+                              <span className="font-medium">{stcgTaxRate * 100}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* LTCG Summary */}
+                      <div className="p-4 bg-slate-50 rounded-md">
+                        <h4 className="font-medium mb-3 flex items-center">
+                          <PieChart className="h-4 w-4 mr-2 text-indigo-500" />
+                          Long-term Capital Gains Summary
+                        </h4>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total LTCG:</span>
+                              <span className="font-medium text-green-600">{formatCurrency(ltGainTotal)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total LTCL:</span>
+                              <span className="font-medium text-red-600">{formatCurrency(ltLossTotal)}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Net LT Gain/Loss:</span>
+                              <span className={`font-bold ${netLtGainLoss < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                {formatCurrency(netLtGainLoss)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Tax Rate:</span>
+                              <span className="font-medium">{ltcgTaxRate * 100}% (above ₹1L)</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Right column - Tax Savings */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Tax Savings & Optimization Analysis</h3>
+                    
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center p-4 bg-orange-50 rounded-md border border-orange-100">
+                        <div className="flex items-center">
+                          <Percent className="h-5 w-5 text-orange-500 mr-2" />
+                          <span className="font-medium">Total Tax Payable Without Optimization:</span>
+                        </div>
+                        <span className="font-bold text-orange-700">{formatCurrency(totalTaxWithoutOpt)}</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center p-4 bg-green-50 rounded-md border border-green-100">
+                        <div className="flex items-center">
+                          <Check className="h-5 w-5 text-green-500 mr-2" />
+                          <span className="font-medium">Total Tax After Optimization:</span>
+                        </div>
+                        <span className="font-bold text-green-700">{formatCurrency(totalTaxWithOpt)}</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center p-4 bg-blue-50 rounded-md border border-blue-100">
+                        <div className="flex items-center">
+                          <TrendingUp className="h-5 w-5 text-blue-500 mr-2" />
+                          <span className="font-medium">Tax Saved:</span>
+                        </div>
+                        <span className="font-bold text-blue-700">{formatCurrency(taxSaved)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Visualizations - Side by Side */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  {/* Gains & Losses Chart */}
+                  <div>
+                    <h4 className="font-medium mb-3">Gains & Losses Visualization</h4>
+                    <div className="h-[250px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RechartsBarChart 
+                          data={prepareSummaryChartData()} 
+                          margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis tickFormatter={(value) => `₹${value/1000}K`} />
+                          <Tooltip 
+                            formatter={(value) => formatCurrency(Number(value))}
+                            labelStyle={{ color: '#333' }}
+                          />
+                          <Bar 
+                            dataKey="value" 
+                            fill="#4f46e5" 
+                            name="Amount" 
+                            radius={[4, 4, 0, 0]}
+                          />
+                        </RechartsBarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  
+                  {/* Tax Comparison Chart */}
+                  <div>
+                    <h4 className="font-medium mb-3">Tax Comparison Visualization</h4>
+                    <div className="h-[250px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RechartsBarChart 
+                          data={prepareTaxComparisonData()} 
+                          margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis tickFormatter={(value) => `₹${value/1000}K`} />
+                          <Tooltip 
+                            formatter={(value) => formatCurrency(Number(value))}
+                            labelStyle={{ color: '#333' }}
+                          />
+                          <Bar 
+                            dataKey="value" 
+                            fill="#10b981" 
+                            name="Amount" 
+                            radius={[4, 4, 0, 0]}
+                          />
+                        </RechartsBarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Actionable Recommendations - Green Box */}
+                <div className="mb-4">
+                  <h4 className="font-medium mb-3 flex items-center">
+                    <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
+                    Actionable Tax Optimization Recommendations
+                  </h4>
+                  
+                  <div className="bg-green-50 p-5 rounded-md text-sm border border-green-200 shadow-sm">
+                    <p className="text-xs text-green-800 italic mb-4">
+                      <strong>Recommendation Notice:</strong> The following suggestions are general guidelines based on 
+                      common tax-saving strategies. Your specific situation may require different 
+                      approaches. Always verify current tax laws and consult tax professionals before 
+                      implementing any tax-saving strategy.
+                    </p>
+                    
+                    <ul className="space-y-3">
+                      {getTaxOptimizationRecommendations().map((rec, index) => (
+                        <li key={index} className="flex items-start">
+                          <ArrowRight className="h-5 w-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
+                          <span className="text-green-900">{rec}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                {stcgEntries.length > 0 || ltcgEntries.length > 0 ? (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Ready to Calculate Results</h3>
+                    <p className="text-muted-foreground max-w-lg mx-auto mb-4">
+                      You've added some investments to your portfolio. Click the Calculate button above to
+                      see your tax optimization results and potential savings.
+                    </p>
+                    <Button 
+                      onClick={() => setShowResults(true)} 
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <Calculator className="mr-2 h-4 w-4" />
+                      Calculate
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Add Capital Gains and Losses</h3>
+                    <p className="text-muted-foreground max-w-lg mx-auto mb-4">
+                      Use the forms above to add your short-term and long-term capital gains and losses.
+                      Then click Calculate to see your tax savings potential.
+                    </p>
+                    <div className="flex justify-center">
+                      <svg width="120" height="120" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-slate-300">
+                        <path d="M11.9999 2C13.9889 2 15.9555 2.58649 17.6665 3.6853C19.3776 4.78412 20.7588 6.3459 21.6267 8.17317C22.4946 10.0004 22.8132 12.0111 22.5433 13.9509C22.2734 15.8907 21.4262 17.7072 20.1069 19.1782C18.7877 20.6492 17.0543 21.7105 15.1259 22.2403C13.1975 22.7701 11.1575 22.7467 9.24262 22.1727C7.32777 21.5987 5.62139 20.4984 4.33754 19.0001C3.05368 17.5019 2.24446 15.6729 2.01986 13.7294" 
+                          stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        <path d="M8 12L12 16L20 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      
+        {/* Educational Section - Only visible after Calculate is clicked */}
+        {showResults && (
+          <div className="mt-8">
+            <Card className="mb-6">
+            <CardHeader className="bg-gray-50 border-b border-gray-100">
+              <CardTitle className="flex items-center text-base">
+                <Info className="mr-2 h-5 w-5 text-blue-500" />
+                Tax Harvesting Essentials
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {/* Tax Rates Grid */}
+              <div className="mb-6">
+                <div className="bg-blue-50 p-2 rounded-t-md">
+                  <h3 className="font-medium text-blue-700 flex items-center">
+                    <Clipboard className="h-4 w-4 mr-2" />
+                    Tax Rates Summary
+                  </h3>
+                </div>
+                <div className="border border-blue-100 rounded-b-md overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                    <th className="p-3 text-left font-medium">Asset Type</th>
+                    <th className="p-3 text-left font-medium">Short Term</th>
+                    <th className="p-3 text-left font-medium">Long Term</th>
+                    <th className="p-3 text-left font-medium">STCG Rate</th>
+                    <th className="p-3 text-left font-medium">LTCG Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-100">
+                    <td className="p-3 font-medium">Stocks/Equity Funds</td>
+                    <td className="p-3">{"<"} 1 year</td>
+                    <td className="p-3">{">"} 1 year</td>
+                    <td className="p-3">15%</td>
+                    <td className="p-3">10% (above ₹1L)</td>
+                  </tr>
+                  <tr className="border-b border-gray-100">
+                    <td className="p-3 font-medium">Debt Funds</td>
+                    <td className="p-3">{"<"} 3 years</td>
+                    <td className="p-3">{">"} 3 years</td>
+                    <td className="p-3">As per slab</td>
+                    <td className="p-3">20% with indexation</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-medium">Gold/REITs</td>
+                    <td className="p-3">{"<"} 3 years</td>
+                    <td className="p-3">{">"} 3 years</td>
+                    <td className="p-3">As per slab</td>
+                    <td className="p-3">20% with indexation</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Indexation Info */}
+            <div className="bg-green-50 rounded-md p-3 mt-3 border border-green-100">
+              <h4 className="font-medium flex items-center text-green-800 mb-2">
+                <Info className="h-4 w-4 mr-2 text-green-600" />
+                What is Indexation?
+              </h4>
+              <p className="text-sm text-green-700">
+                Indexation is a method that adjusts the purchase price of an asset to account for inflation, 
+                reducing the effective capital gains and thus lowering your tax liability. 
+                The government publishes Cost Inflation Index (CII) values each year that are used in this calculation.
+              </p>
+              <div className="mt-2 text-sm">
+                <p className="font-medium text-green-800">Calculation Formula:</p>
+                <div className="bg-white rounded p-2 mt-1 border border-green-100">
+                  <code className="text-green-800">
+                    Indexed Cost = Original Cost × (CII of Sale Year ÷ CII of Purchase Year)
+                  </code>
+                </div>
+                <div className="mt-2 bg-white rounded p-2 border border-green-100">
+                  <p className="font-medium text-green-800">Example:</p>
+                  <p>Original purchase price (2018): ₹1,00,000</p>
+                  <p>CII for 2018: 280</p>
+                  <p>CII for 2024 (sale year): 348</p>
+                  <p>Indexed cost: ₹1,00,000 × (348 ÷ 280) = ₹1,24,286</p>
+                  <p>If sold at ₹1,50,000, taxable gain is only ₹25,714 instead of ₹50,000!</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Key Rules Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+              <h4 className="font-medium text-gray-800 mb-3 flex items-center">
+                <span className="flex items-center justify-center rounded-full bg-blue-100 w-6 h-6 text-blue-700 mr-2 text-sm font-bold">1</span>
+                8-Year Carry Forward Rule
+              </h4>
+              <ul className="space-y-2 pl-5 list-disc">
+                <li>Carry forward losses for 8 assessment years</li>
+                <li>Must declare in ITR for the year of loss</li>
+                <li>ST losses can offset both STCG and LTCG</li>
+                <li>LT losses can only offset LTCG</li>
+              </ul>
+            </div>
+            
+            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+              <h4 className="font-medium text-gray-800 mb-3 flex items-center">
+                <span className="flex items-center justify-center rounded-full bg-blue-100 w-6 h-6 text-blue-700 mr-2 text-sm font-bold">2</span>
+                Important Deadlines
+              </h4>
+              <ul className="space-y-2 pl-5 list-disc">
+                <li><strong>March 31st:</strong> Book losses for current FY</li>
+                <li><strong>July 31st:</strong> ITR filing deadline</li>
+                <li><strong>30-day cooling period:</strong> Before repurchase</li>
+              </ul>
+            </div>
+          </div>
+          
+          {/* Examples Section */}
+          <div className="bg-blue-50 rounded-md p-4 border border-blue-100">
+            <h4 className="font-medium text-blue-700 mb-3">Quick Examples</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="font-medium mb-2">Example 1: Short-term Loss</p>
+                <div className="bg-white p-3 rounded shadow-sm">
+                  <p>Buy: Infosys @ ₹1,500 × 100 = ₹1,50,000</p>
+                  <p>Sell: @ ₹1,300 × 100 = ₹1,30,000</p>
+                  <p>Loss: ₹20,000</p>
+                  <p className="font-medium text-green-600">Tax Saved: ₹3,000 (15% rate)</p>
+                </div>
+              </div>
+              
+              <div>
+                <p className="font-medium mb-2">Example 2: Carrying Forward</p>
+                <div className="bg-white p-3 rounded shadow-sm">
+                  <p>Year 1: Book loss of ₹50,000</p>
+                  <p>Year 2: Offset ₹30,000 against gains</p>
+                  <p>Year 3-8: Use remaining ₹20,000</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-4 bg-white p-3 rounded-md border border-blue-100">
+              <h4 className="font-medium text-blue-700 mb-2 flex items-center">
+                <TrendingUp className="h-4 w-4 mr-2 text-blue-600" />
+                Tax Harvesting Tips
+              </h4>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                <li><strong>Year-end review:</strong> Assess your portfolio in December/January to identify harvesting opportunities</li>
+                <li><strong>Avoid wash sales:</strong> Wait at least 30 days before repurchasing substantially identical securities</li>
+                <li><strong>Harvest losses strategically:</strong> Start with highest-cost tax lots first for maximum benefit</li>
+                <li><strong>Consider asset location:</strong> Hold tax-inefficient investments in tax-advantaged accounts</li>
+                <li><strong>Balance with investment goals:</strong> Don't compromise long-term investment strategy just for tax benefits</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Connected Financial Features - Only visible after Calculate is clicked */}
+      {showResults && (
+        <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-4 flex items-center">
+          <TrendingUp className="mr-2 h-5 w-5" />
+          Connected Financial Features
+        </h2>
+        <p className="mb-4">
+          Your tax harvesting data is automatically integrated with these features to provide 
+          comprehensive financial insights:
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <h3 className="font-medium text-blue-800 mb-2">
+              Portfolio Simulator
+            </h3>
+            <ul className="space-y-1 text-sm">
+              <li className="flex">
+                <Check className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Tax-efficient investment strategies</span>
+              </li>
+              <li className="flex">
+                <Check className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Risk-adjusted returns analysis</span>
+              </li>
+              <li className="flex">
+                <Check className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Portfolio rebalancing suggestions</span>
+              </li>
+            </ul>
+          </div>
+          
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <h3 className="font-medium text-blue-800 mb-2">
+              Goal Settings
+            </h3>
+            <ul className="space-y-1 text-sm">
+              <li className="flex">
+                <Check className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Tax savings contribution to goals</span>
+              </li>
+              <li className="flex">
+                <Check className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Progress tracking with tax benefits</span>
+              </li>
+              <li className="flex">
+                <Check className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Goal-based investment suggestions</span>
+              </li>
+            </ul>
+          </div>
+          
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <h3 className="font-medium text-blue-800 mb-2">
+              Financial Calculators
+            </h3>
+            <ul className="space-y-1 text-sm">
+              <li className="flex">
+                <Check className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>After-tax returns calculation</span>
+              </li>
+              <li className="flex">
+                <Check className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Tax-adjusted investment planning</span>
+              </li>
+              <li className="flex">
+                <Check className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>Future value projections</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,15 @@
+/* Hide scrollbar buttons/indicators in the Financial Calculators page */
+.financial-calculators-page ::-webkit-scrollbar-button {
+  display: none !important;
+}
+
+/* Hide the scrollbar completely in the TabsList component */
+.financial-calculators-page .TabsList::-webkit-scrollbar {
+  height: 0;
+  width: 0;
+}
+
+/* For Firefox */
+.financial-calculators-page .TabsList {
+  scrollbar-width: none;
+}

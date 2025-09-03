@@ -1,0 +1,133 @@
+/* Hide scrollbar buttons/indicators in the Financial Calculators page */
+.financial-calculators-page ::-webkit-scrollbar-button {
+  display: none !important;
+}
+
+/* Hide the scrollbar completely in the TabsList component */
+.financial-calculators-page .TabsList::-webkit-scrollbar {
+  height: 0;
+  width: 0;
+}
+
+/* For Firefox */
+.financial-calculators-page .TabsList {
+  scrollbar-width: none;
+}
+
+/* Ensure consistent tool card sizing across all positions */
+.financial-calculators-page .grid > a > div {
+  min-height: 140px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.financial-calculators-page .grid > a:hover > div {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Consistent spacing for tool icons */
+.financial-calculators-page .grid .w-10.h-10 {
+  width: 40px !important;
+  height: 40px !important;
+  flex-shrink: 0;
+}
+
+/* Consistent text sizing for tool titles and descriptions */
+.financial-calculators-page .grid h3 {
+  font-size: 0.875rem !important; /* text-sm */
+  line-height: 1.25rem !important;
+}
+
+.financial-calculators-page .grid p {
+  font-size: 0.75rem !important; /* text-xs */
+  line-height: 1.5 !important; /* leading-relaxed */
+}
+
+/* Global tool consistency styles for Landing page Quick Access */
+.landing-quick-access .grid > a > div {
+  min-height: 100px !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+}
+
+.landing-quick-access .grid > a:hover > div {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Sidebar Quick Access tools (smaller) */
+.sidebar-quick-access .grid > a > div {
+  min-height: 60px !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 10px !important;
+}
+
+.sidebar-quick-access .grid > a:hover > div {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Consistent text sizing for Landing Page Quick Access */
+.landing-quick-access .grid span {
+  font-size: 0.875rem !important; /* text-sm */
+  line-height: 1.25rem !important;
+  font-weight: 500 !important;
+}
+
+/* Consistent text sizing for Sidebar Quick Access */
+.sidebar-quick-access .grid span {
+  font-size: 0.75rem !important; /* text-xs */
+  line-height: 1rem !important;
+  font-weight: 500 !important;
+}
+
+/* Ensure consistent spacing in grid layouts */
+.tools-grid {
+  gap: 1rem !important;
+}
+
+/* Global tool card hover effects */
+.tool-card {
+  transition: all 0.2s ease;
+}
+
+.tool-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .financial-calculators-page .grid > a > div {
+    min-height: 120px !important;
+  }
+  
+  .landing-quick-access .grid > a > div {
+    min-height: 80px !important;
+    padding: 12px !important;
+  }
+  
+  .sidebar-quick-access .grid > a > div {
+    min-height: 50px !important;
+    padding: 8px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .financial-calculators-page .grid > a > div {
+    min-height: 130px !important;
+  }
+  
+  .landing-quick-access .grid > a > div {
+    min-height: 90px !important;
+    padding: 14px !important;
+  }
+}

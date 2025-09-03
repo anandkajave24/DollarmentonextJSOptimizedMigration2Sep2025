@@ -1,0 +1,508 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-gray-200;
+  }
+
+  body {
+    @apply font-sans antialiased bg-white text-slate-900;
+  }
+
+  .font-recoleta {
+    font-family: 'Playfair Display', serif;
+  }
+  
+  /* Dark Theme Styles - True Black Night Mode */
+  .dark-theme {
+    /* Global background and text colors */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    
+    /* Card and UI element backgrounds */
+    --card: 0 0% 0%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 0%;
+    --popover-foreground: 0 0% 100%;
+    
+    /* Primary UI colors - Red from reference image */
+    --primary: 4 90% 58%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary UI colors */
+    --secondary: 0 0% 8%;
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Muted UI elements */
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 70%;
+    
+    /* Accents and emphasis */
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 100%;
+    
+    /* Destructive/error colors */
+    --destructive: 4 90% 58%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Border and control colors */
+    --border: 0 0% 20%;
+    --input: 0 0% 5%;
+    --ring: 4 90% 58%;
+  }
+  
+  /* Apply dark theme styles - True Black */
+  .dark-theme {
+    color-scheme: dark;
+  }
+  
+  /* Background colors */
+  .dark-theme body, 
+  .dark-theme .min-h-screen {
+    background-color: #000000;
+    color: #ffffff;
+  }
+  
+  .dark-theme header,
+  .dark-theme nav,
+  .dark-theme footer {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+  }
+  
+  /* Force black background even on root elements */
+  .dark-theme #root,
+  .dark-theme #__next,
+  .dark-theme html {
+    background-color: #000000 !important;
+  }
+  
+  .dark-theme .bg-white {
+    background-color: #000000 !important;
+  }
+  
+  .dark-theme .bg-gray-50,
+  .dark-theme .bg-gray-100,
+  .dark-theme .bg-gray-200,
+  .dark-theme .bg-gray-300,
+  .dark-theme .bg-gray-400,
+  .dark-theme .bg-gray-500,
+  .dark-theme .bg-gray-600,
+  .dark-theme .bg-gray-700,
+  .dark-theme .bg-gray-800,
+  .dark-theme .bg-gray-900 {
+    background-color: #000000 !important;
+  }
+  
+  .dark-theme .bg-\[\#F5F5F5\],
+  .dark-theme .bg-\[\#f5f5f5\],
+  .dark-theme .bg-\[\#F8F8F8\],
+  .dark-theme .bg-\[\#f8f8f8\],
+  .dark-theme .bg-\[\#FAFAFA\],
+  .dark-theme .bg-\[\#fafafa\] {
+    background-color: #000000 !important;
+  }
+  
+  /* Card backgrounds */
+  .dark-theme .bg-card {
+    background-color: #000000 !important;
+  }
+  
+  .dark-theme .bg-blue-100,
+  .dark-theme .bg-green-100,
+  .dark-theme .bg-red-100,
+  .dark-theme .bg-purple-100,
+  .dark-theme .bg-yellow-100,
+  .dark-theme .bg-orange-100,
+  .dark-theme .bg-indigo-100,
+  .dark-theme .bg-pink-100,
+  .dark-theme .bg-blue-50 {
+    background-color: #111111 !important;
+    border: 1px solid #333333 !important;
+  }
+  
+  /* Style sidebar specifically for dark mode */
+  .dark-theme .fixed.left-0 {
+    background-color: #000000 !important;
+    border-right: 1px solid #222222 !important;
+  }
+  
+  /* Style sidebar menu items for consistency */
+  .dark-theme .w-16.h-16 {
+    padding: 8px 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Make sidebar menu items look like reference image */
+  .dark-theme .rounded-full {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  }
+  
+  /* Make the selection background darker in dark mode */
+  .dark-theme .bg-blue-50 {
+    background-color: #111111 !important;
+  }
+  
+  /* Fix the sidebar text color in dark mode */
+  .dark-theme .text-slate-700 {
+    color: #ffffff !important;
+  }
+  
+  /* Fix active menu item color in dark mode */
+  .dark-theme .text-blue-600 {
+    color: #4c6ef5 !important;
+  }
+  
+  /* Text colors - all light to white for maximum contrast */
+  .dark-theme .text-gray-400,
+  .dark-theme .text-gray-500,
+  .dark-theme .text-gray-600,
+  .dark-theme .text-gray-700,
+  .dark-theme .text-gray-800,
+  .dark-theme .text-gray-900 {
+    color: #ffffff !important;
+  }
+  
+  /* Ensure all text is visible */
+  .dark-theme {
+    color: #ffffff;
+  }
+  
+  /* Heading styles in dark mode */
+  .dark-theme h1,
+  .dark-theme h2,
+  .dark-theme h3,
+  .dark-theme h4,
+  .dark-theme h5,
+  .dark-theme h6,
+  .dark-theme .text-2xl,
+  .dark-theme .text-3xl,
+  .dark-theme .text-4xl,
+  .dark-theme .text-5xl {
+    color: #ffffff !important;
+  }
+  
+  /* Tab styles in dark mode exactly like the reference image */
+  .dark-theme .tab-list,
+  .dark-theme [role="tablist"] {
+    border-bottom: 1px solid #333333 !important;
+    display: flex !important;
+    gap: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+  
+  .dark-theme .tab,
+  .dark-theme [role="tab"] {
+    color: #999999 !important;
+    font-weight: 500 !important;
+    font-size: 0.95rem !important;
+    padding: 0.5rem 0.25rem !important;
+    position: relative !important;
+    transition: all 0.2s ease !important;
+    background: transparent !important;
+    border: none !important;
+  }
+  
+  .dark-theme .tab.active,
+  .dark-theme .tab[data-state="active"],
+  .dark-theme [role="tab"][aria-selected="true"],
+  .dark-theme [data-state="active"] {
+    color: #ff3b30 !important;
+    font-weight: 600 !important;
+    position: relative !important;
+  }
+  
+  .dark-theme .tab.active::after,
+  .dark-theme .tab[data-state="active"]::after,
+  .dark-theme [role="tab"][aria-selected="true"]::after,
+  .dark-theme [data-state="active"]::after {
+    content: "" !important;
+    position: absolute !important;
+    bottom: -3px !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 2px !important;
+    background-color: #ff3b30 !important;
+    border-radius: 2px !important;
+  }
+  
+  /* Border colors */
+  .dark-theme .border,
+  .dark-theme .border-gray-100,
+  .dark-theme .border-gray-200,
+  .dark-theme .border-gray-300,
+  .dark-theme .border-gray-400,
+  .dark-theme .border-gray-500 {
+    border-color: #333333 !important;
+  }
+  
+  /* Hover states */
+  .dark-theme .hover\:bg-gray-50:hover,
+  .dark-theme .hover\:bg-gray-100:hover,
+  .dark-theme .hover\:bg-gray-200:hover,
+  .dark-theme .hover\:bg-gray-300:hover,
+  .dark-theme .hover\:bg-gray-400:hover,
+  .dark-theme .hover\:bg-gray-500:hover,
+  .dark-theme .hover\:bg-gray-600:hover,
+  .dark-theme .hover\:bg-gray-700:hover,
+  .dark-theme .hover\:bg-gray-800:hover,
+  .dark-theme .hover\:bg-gray-900:hover {
+    background-color: #111111 !important;
+  }
+  
+  /* Important for card hovers */
+  .dark-theme .card:hover {
+    background-color: #111111 !important;
+  }
+  
+  /* Shadows */
+  .dark-theme .shadow,
+  .dark-theme .shadow-sm,
+  .dark-theme .shadow-md,
+  .dark-theme .shadow-lg,
+  .dark-theme .shadow-xl {
+    box-shadow: 0 1px 3px 0 rgba(255, 255, 255, 0.1), 0 1px 2px 0 rgba(255, 255, 255, 0.06) !important;
+  }
+  
+  /* Inputs and forms - exactly like reference image */
+  .dark-theme input:not([type="range"]),
+  .dark-theme select,
+  .dark-theme textarea,
+  .dark-theme .input-field {
+    background-color: #0F0F0F !important;
+    border: 1px solid #333333 !important;
+    color: white !important;
+    border-radius: 4px !important;
+    padding: 0.75rem 1rem !important;
+    outline: none !important;
+    box-shadow: none !important;
+    font-size: 0.95rem !important;
+  }
+  
+  .dark-theme input:not([type="range"]):focus,
+  .dark-theme select:focus,
+  .dark-theme textarea:focus,
+  .dark-theme .input-field:focus {
+    border-color: #ff3b30 !important;
+    box-shadow: 0 0 0 1px rgba(255, 59, 48, 0.3) !important;
+  }
+  
+  .dark-theme input:not([type="range"]):disabled,
+  .dark-theme select:disabled,
+  .dark-theme textarea:disabled,
+  .dark-theme .input-field:disabled {
+    background-color: #0A0A0A !important;
+    opacity: 0.75 !important;
+  }
+  
+  /* Budget input fields with minus and plus buttons */
+  .dark-theme .number-input-container {
+    display: flex !important;
+    align-items: center !important;
+    background-color: #0F0F0F !important;
+    border-radius: 4px !important;
+    border: 1px solid #333333 !important;
+    overflow: hidden !important;
+  }
+  
+  .dark-theme .number-input-button {
+    background-color: #0F0F0F !important;
+    color: #fff !important;
+    width: 40px !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    font-size: 1.25rem !important;
+    font-weight: 600 !important;
+  }
+  
+  .dark-theme .number-input-field {
+    background-color: #0F0F0F !important;
+    color: white !important;
+    padding: 0.5rem !important;
+    text-align: center !important;
+    border: none !important;
+    flex: 1 !important;
+  }
+  
+  /* Specific styling for range sliders/progress bars to match the design */
+  .dark-theme input[type="range"],
+  .dark-theme .range,
+  .dark-theme progress,
+  .dark-theme .slider,
+  .dark-theme [role="slider"],
+  .dark-theme [data-type="range"] {
+    -webkit-appearance: none;
+    background-color: #222222 !important;
+    accent-color: #ff3b30 !important;
+    height: 4px !important;
+    border-radius: 2px !important;
+    border: none !important;
+    margin: 1.5rem 0 !important;
+  }
+  
+  .dark-theme input[type="range"]::-webkit-slider-thumb,
+  .dark-theme .range::-webkit-slider-thumb,
+  .dark-theme [role="slider"] [data-state="thumb"],
+  .dark-theme [data-type="range"] .thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: #ff3b30 !important;
+    width: 18px !important;
+    height: 18px !important;
+    border-radius: 50% !important;
+    border: 2px solid #000000 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+    cursor: pointer;
+    margin-top: -7px !important;
+  }
+  
+  .dark-theme input[type="range"]::-moz-range-thumb {
+    background-color: #ff3b30 !important;
+    width: 18px !important;
+    height: 18px !important;
+    border-radius: 50% !important;
+    border: 2px solid #000000 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+    cursor: pointer;
+  }
+  
+  /* Custom track fill for range sliders similar to the design */
+  .dark-theme input[type="range"]::-webkit-slider-runnable-track,
+  .dark-theme [role="slider"] [data-orientation="horizontal"],
+  .dark-theme .dark-theme [data-type="range"] [data-orientation="horizontal"] {
+    background: linear-gradient(90deg, #ff3b30 var(--range-percent, 50%), #333333 var(--range-percent, 50%)) !important;
+    height: 4px !important;
+    border-radius: 2px !important;
+  }
+  
+  /* Specific styling for the reference image's slider that has 0-70 values */
+  .dark-theme .savings-slider,
+  .dark-theme .percentage-slider {
+    position: relative !important;
+  }
+  
+  .dark-theme .savings-slider::before,
+  .dark-theme .percentage-slider::before {
+    content: "0";
+    position: absolute;
+    bottom: -20px;
+    left: 0;
+    color: #999999;
+    font-size: 0.8rem;
+  }
+  
+  .dark-theme .savings-slider::after,
+  .dark-theme .percentage-slider::after {
+    content: "70";
+    position: absolute;
+    bottom: -20px;
+    right: 0;
+    color: #999999;
+    font-size: 0.8rem;
+  }
+  
+  /* Add current value display */
+  .dark-theme .slider-value {
+    color: #ff3b30 !important;
+    font-weight: 600 !important;
+    font-size: 1.25rem !important;
+  }
+  
+  /* Red accent color for highlights and active elements */
+  .dark-theme .active-tab,
+  .dark-theme .tab[aria-selected="true"],
+  .dark-theme .active {
+    color: #ff3b30 !important;
+    border-color: #ff3b30 !important;
+  }
+  
+  /* Buttons styling */
+  .dark-theme button,
+  .dark-theme .btn,
+  .dark-theme .button {
+    background-color: #111111 !important;
+    color: white !important;
+    border-color: #333333 !important;
+  }
+  
+  .dark-theme button:hover,
+  .dark-theme .btn:hover,
+  .dark-theme .button:hover {
+    background-color: #222222 !important;
+  }
+  
+  .dark-theme button.primary,
+  .dark-theme .btn-primary,
+  .dark-theme .primary-button {
+    background-color: #ff3b30 !important;
+    color: white !important;
+    border: none !important;
+  }
+  
+  /* For all elements that might have white background */
+  .dark-theme [class*="bg-white"] {
+    background-color: black !important;
+    color: white !important;
+  }
+  
+  .dark-theme div[style*="background-color: white"] {
+    background-color: black !important;
+    color: white !important;
+  }
+  
+  .dark-theme div[style*="background-color: #fff"] {
+    background-color: black !important;
+    color: white !important;
+  }
+  
+  .dark-theme div[style*="background: white"] {
+    background-color: black !important;
+    color: white !important;
+  }
+  
+  .dark-theme div[style*="background: #fff"] {
+    background-color: black !important;
+    color: white !important;
+  }
+}
+
+/* Additional responsive layout styles */
+.container-responsive {
+  @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+.card-responsive {
+  @apply w-full max-w-3xl mx-auto;
+}
+
+/* Prevent horizontal overflow in smaller screens */
+.overflow-x-auto {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Fixes for forms on small screens */
+@media (max-width: 640px) {
+  .form-row-responsive {
+    @apply flex-col;
+  }
+  
+  .form-col-responsive {
+    @apply w-full mb-2;
+  }
+}
+
+/* Custom components */
+@layer components {
+  /* Standardized input styling from Budget Buddy page */
+  .input-standard {
+    @apply bg-gray-50 border-2 border-gray-200 dark:bg-gray-800 dark:border-gray-700;
+  }
+}

@@ -1,0 +1,2292 @@
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
+import { useToast } from "../hooks/use-toast";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Button } from "../components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { SEO } from "../components/SEO";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../components/ui/accordion";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { Calculator, AlertTriangle, Info, ArrowRight, Wallet, CheckCircle } from "lucide-react";
+import { CheckCircle2, Lightbulb } from "lucide-react";
+
+type IncomeData = {
+  salary: number;
+  rentalIncome: number;
+  interestIncome: number;
+  otherIncome: number;
+};
+
+type DeductionData = {
+  // Section 80C
+  ppf: number;
+  elss: number;
+  nsc: number;
+  sukanyaSamriddhi: number;
+  lifeInsurance: number;
+  ulip: number;
+  homeLoanPrincipal: number;
+  tuitionFees: number;
+  // Section 80D
+  healthInsurance: number;
+  preventiveHealthCheckup: number;
+  // Education
+  educationLoanInterest: number;
+  // Housing
+  housingLoanInterest: number;
+  // Other deductions
+  nps: number;
+  donations: number;
+  others: number;
+  // Stock Market (disabled for now but might be enabled in future)
+  equitySTCG?: number;
+  equityLTCG?: number;
+  debtSTCG?: number;
+  // Other Benefits (disabled for now but might be enabled in future)
+  electricVehicle?: number;
+  startupInvestment?: number;
+  ruralDevelopment?: number;
+};
+
+type TaxResult = {
+  financialYear: string;
+  taxableIncome: number;
+  taxPayable: {
+    oldRegime: number;
+    newRegime: number;
+  };
+  recommends: string;
+  section80C: {
+    used: number;
+    limit: number;
+  };
+  section80D: {
+    used: number;
+    limit: number;
+  };
+  section80G: {
+    used: number;
+    limit: number;
+  };
+  section80E: {
+    used: number;
+    limit: number;
+  };
+  section80EEA: {
+    used: number;
+    limit: number;
+  };
+  section80TTA: {
+    used: number;
+    limit: number;
+  };
+  section80U?: {
+    used: number;
+    limit: number;
+  };
+  // Additional properties for detailed breakdown
+  incomeDetails: {
+    grossTotal: number;
+    standardDeduction: number;
+  };
+  taxableIncomes: {
+    oldRegime: number;
+    newRegime: number;
+  };
+};
+
+export default function TaxCalculator() {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [financialYear, setFinancialYear] = useState("2024-25");
+  const [income, setIncome] = useState<IncomeData>({
+    salary: 500000,
+    rentalIncome: 0,
+    interestIncome: 0,
+    otherIncome: 0
+  });
+  const [deductions, setDeductions] = useState<DeductionData>({
+    // Section 80C
+    ppf: 0,
+    elss: 0,
+    nsc: 0,
+    sukanyaSamriddhi: 0,
+    lifeInsurance: 0,
+    ulip: 0,
+    homeLoanPrincipal: 0,
+    tuitionFees: 0,
+    // Section 80D
+    healthInsurance: 0,
+    preventiveHealthCheckup: 0,
+    // Education
+    educationLoanInterest: 0,
+    // Housing
+    housingLoanInterest: 0,
+    // Other deductions
+    nps: 0,
+    donations: 0,
+    others: 0
+  });
+  const [result, setResult] = useState<TaxResult | null>(null);
+  const [activeDeductionTab, setActiveDeductionTab] = useState("80c");
+  const [additionalBenefitsTab, setAdditionalBenefitsTab] = useState("health");
+
+  // Calculate gross total income
+  const totalIncome = 
+    income.salary + 
+    income.rentalIncome + 
+    income.interestIncome + 
+    income.otherIncome;
+
+  // Calculate Section 80C deductions (max 1.5 lakhs)
+  const total80C = 
+    deductions.ppf +
+    deductions.elss +
+    deductions.nsc +
+    deductions.sukanyaSamriddhi +
+    deductions.lifeInsurance +
+    deductions.ulip +
+    deductions.homeLoanPrincipal +
+    deductions.tuitionFees;
+    
+  // Calculate Section 80D deductions (health insurance)
+  const total80D = 
+    deductions.healthInsurance +
+    deductions.preventiveHealthCheckup;
+  
+  // Standard deduction for salaried individuals (applies to both regimes)
+  const standardDeduction = income.salary > 0 ? 50000 : 0;
+  
+  // Total deductions for Old Tax Regime
+  const totalDeductions = 
+    standardDeduction +
+    Math.min(total80C, 150000) + 
+    Math.min(total80D, 75000) + 
+    deductions.educationLoanInterest +
+    deductions.housingLoanInterest + 
+    deductions.nps +
+    deductions.donations +
+    deductions.others;
+
+  const handleIncomeChange = (field: keyof IncomeData, value: string) => {
+    const numValue = value === '' ? 0 : Number(value);
+    setIncome(prev => ({ ...prev, [field]: numValue }));
+  };
+
+  const handleDeductionChange = (field: keyof DeductionData, value: string) => {
+    const numValue = value === '' ? 0 : Number(value);
+    setDeductions(prev => ({ ...prev, [field]: numValue }));
+  };
+
+  const calculateTax = async () => {
+    setLoading(true);
+    try {
+      // Calculate taxable income for old regime
+      const oldRegimeTaxableIncome = Math.max(0, totalIncome - totalDeductions);
+      
+      // Calculate taxable income for new regime (only standard deduction applicable)
+      const newRegimeTaxableIncome = Math.max(0, totalIncome - standardDeduction);
+      
+      /* ====== Old Tax Regime Calculation (FY 2024-25) ====== */
+      let oldRegimeBaseTax = 0;
+      
+      // Apply tax slabs for Old Regime
+      if (oldRegimeTaxableIncome > 1000000) {
+        // For income above 10 lakhs: 1,12,500 + 30% of income exceeding 10 lakhs
+        oldRegimeBaseTax = 112500 + (oldRegimeTaxableIncome - 1000000) * 0.3;
+      } else if (oldRegimeTaxableIncome > 500000) {
+        // For income between 5-10 lakhs: 12,500 + 20% of income exceeding 5 lakhs
+        oldRegimeBaseTax = 12500 + (oldRegimeTaxableIncome - 500000) * 0.2;
+      } else if (oldRegimeTaxableIncome > 250000) {
+        // For income between 2.5-5 lakhs: 5% of income exceeding 2.5 lakhs
+        oldRegimeBaseTax = (oldRegimeTaxableIncome - 250000) * 0.05;
+      }
+      
+      // Apply Section 87A rebate (up to Rs. 12,500) for income up to Rs. 5 lakhs
+      if (oldRegimeTaxableIncome <= 500000 && oldRegimeBaseTax > 0) {
+        oldRegimeBaseTax = Math.max(0, oldRegimeBaseTax - Math.min(12500, oldRegimeBaseTax));
+      }
+      
+      /* ====== New Tax Regime Calculation (FY 2024-25) ====== */
+      let newRegimeBaseTax = 0;
+      
+      // Apply tax slabs for New Regime
+      if (newRegimeTaxableIncome > 1500000) {
+        // For income above 15 lakhs: 1,50,000 + 30% of income exceeding 15 lakhs
+        newRegimeBaseTax = 150000 + (newRegimeTaxableIncome - 1500000) * 0.3;
+      } else if (newRegimeTaxableIncome > 1200000) {
+        // For income between 12-15 lakhs: 90,000 + 20% of income exceeding 12 lakhs
+        newRegimeBaseTax = 90000 + (newRegimeTaxableIncome - 1200000) * 0.2;
+      } else if (newRegimeTaxableIncome > 900000) {
+        // For income between 9-12 lakhs: 45,000 + 15% of income exceeding 9 lakhs
+        newRegimeBaseTax = 45000 + (newRegimeTaxableIncome - 900000) * 0.15;
+      } else if (newRegimeTaxableIncome > 600000) {
+        // For income between 6-9 lakhs: 15,000 + 10% of income exceeding 6 lakhs
+        newRegimeBaseTax = 15000 + (newRegimeTaxableIncome - 600000) * 0.1;
+      } else if (newRegimeTaxableIncome > 300000) {
+        // For income between 3-6 lakhs: 5% of income exceeding 3 lakhs
+        newRegimeBaseTax = (newRegimeTaxableIncome - 300000) * 0.05;
+      }
+      
+      // Apply Section 87A rebate (up to Rs. 25,000) for income up to Rs. 7 lakhs in new regime
+      if (newRegimeTaxableIncome <= 700000 && newRegimeBaseTax > 0) {
+        newRegimeBaseTax = Math.max(0, newRegimeBaseTax - Math.min(25000, newRegimeBaseTax));
+      }
+      
+      // Add 4% health and education cess to both regimes
+      const oldRegimeTax = oldRegimeBaseTax > 0 ? oldRegimeBaseTax * 1.04 : 0;
+      const newRegimeTax = newRegimeBaseTax > 0 ? newRegimeBaseTax * 1.04 : 0;
+      
+      // Create the tax calculation result object
+      const result: TaxResult = {
+        financialYear,
+        taxableIncome: oldRegimeTaxableIncome, // Use old regime taxable income for display
+        taxPayable: {
+          oldRegime: Math.round(oldRegimeTax), // Round to whole numbers
+          newRegime: Math.round(newRegimeTax)  // Round to whole numbers
+        },
+        // Recommend the regime with lower tax liability
+        recommends: oldRegimeTax <= newRegimeTax ? 'Old Tax Regime' : 'New Tax Regime',
+        section80C: {
+          used: Math.min(total80C, 150000),
+          limit: 150000
+        },
+        section80D: {
+          used: Math.min(total80D, 75000),
+          limit: 75000
+        },
+        section80G: {
+          used: deductions.donations,
+          limit: 100000
+        },
+        section80E: {
+          used: deductions.educationLoanInterest,
+          limit: 200000
+        },
+        section80EEA: {
+          used: deductions.housingLoanInterest > 200000 ? 150000 : 0,
+          limit: 150000
+        },
+        section80TTA: {
+          used: Math.min(income.interestIncome, 10000),
+          limit: 10000
+        },
+        // Include additional info for detailed breakdown
+        incomeDetails: {
+          grossTotal: totalIncome,
+          standardDeduction: standardDeduction
+        },
+        taxableIncomes: {
+          oldRegime: oldRegimeTaxableIncome,
+          newRegime: newRegimeTaxableIncome
+        }
+      };
+      
+      setResult(result);
+      toast({
+        title: "Tax Calculated",
+        description: "Your tax calculation is complete",
+        duration: 3000,
+      });
+    } catch (error) {
+      toast({
+        title: "Calculation Error",
+        description: "Failed to calculate tax. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Maximum deduction limits
+  const MAX_SECTION_80C = 150000;
+  const MAX_SECTION_80D = 75000;
+  const MAX_SECTION_80G = 100000;
+  const MAX_SECTION_80E = 200000; // No actual limit, but showing 2 lakhs
+  const MAX_SECTION_80EEA = 150000;
+  const MAX_SECTION_80TTA = 10000;
+  const MAX_SECTION_80U = 125000; // For 40-80% disability, 125000 for >80% disability
+  const MAX_TOTAL_DEDUCTIONS = 350000;
+  
+  // Function to render total deductions with limit
+  const renderTotalDeductions = () => (
+    <div className="flex justify-between bg-blue-50 p-3 rounded-lg border border-blue-100">
+      <span className="font-medium">Total Deductions</span>
+      <span className="text-blue-600 font-semibold">{formatCurrency(totalDeductions)} / {formatCurrency(MAX_TOTAL_DEDUCTIONS)}</span>
+    </div>
+  );
+  
+  // Function to render Section 80C with limit
+  const renderSection80C = () => (
+    <div className="flex justify-between mb-3">
+      <span className="font-medium">Section 80C Used</span>
+      <span className="text-blue-600 font-semibold">{formatCurrency(Math.min(total80C, MAX_SECTION_80C))} / {formatCurrency(MAX_SECTION_80C)}</span>
+    </div>
+  );
+  
+  // Function to render Section 80D with limit
+  const renderSection80D = () => (
+    <div className="flex justify-between mb-3">
+      <span className="font-medium">Section 80D Used</span>
+      <span className="text-blue-600 font-semibold">{formatCurrency(Math.min(total80D, MAX_SECTION_80D))} / {formatCurrency(MAX_SECTION_80D)}</span>
+    </div>
+  );
+  
+  // Function to render Section 80G with limit
+  const renderSection80G = () => (
+    <div className="flex justify-between mb-3">
+      <span className="font-medium">Section 80G Used</span>
+      <span className="text-blue-600 font-semibold">{formatCurrency(deductions.donations)} / {formatCurrency(MAX_SECTION_80G)}</span>
+    </div>
+  );
+  
+  // Function to render Section 80E with limit
+  const renderSection80E = () => (
+    <div className="flex justify-between mb-3">
+      <span className="font-medium">Section 80E Used</span>
+      <span className="text-blue-600 font-semibold">{formatCurrency(deductions.educationLoanInterest)} / {formatCurrency(MAX_SECTION_80E)}</span>
+    </div>
+  );
+  
+  // Function to render Section 80EEA with limit
+  const renderSection80EEA = () => (
+    <div className="flex justify-between mb-3">
+      <span className="font-medium">Section 80EEA Used</span>
+      <span className="text-blue-600 font-semibold">{formatCurrency(deductions.housingLoanInterest > 200000 ? 150000 : 0)} / {formatCurrency(MAX_SECTION_80EEA)}</span>
+    </div>
+  );
+  
+  // Function to render Section 80TTA with limit
+  const renderSection80TTA = () => (
+    <div className="flex justify-between mb-3">
+      <span className="font-medium">Section 80TTA Used</span>
+      <span className="text-blue-600 font-semibold">{formatCurrency(Math.min(income.interestIncome, MAX_SECTION_80TTA))} / {formatCurrency(MAX_SECTION_80TTA)}</span>
+    </div>
+  );
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  return (
+    <div className="container mx-auto py-8 px-4 max-w-6xl">
+      <SEO 
+        title="Comprehensive Tax Savings Calculator"
+        description="Calculate your income tax liability and explore all available tax-saving options in India. Compare between old and new tax regimes to make informed financial decisions."
+        keywords="tax calculator, income tax, tax regime, tax savings, section 80C, ELSS, PPF, tax planning"
+        canonical="https://rupeesmart.com/tax-calculator"
+      />
+
+      <div className="flex flex-col gap-6">
+        <div className="px-1 py-2">
+          <div className="flex flex-col md:flex-row md:items-start justify-between mb-2">
+            <div>
+              <h1 className="text-3xl font-bold mb-1 flex items-center">
+                <Calculator className="mr-3 h-7 w-7 text-primary" />
+                Comprehensive Tax Savings Calculator
+              </h1>
+              <h2 className="text-lg font-medium text-primary mb-2">FY {financialYear} (AY {parseInt(financialYear.split('-')[0])+1}-{parseInt(financialYear.split('-')[1])+1})</h2>
+            </div>
+            <div className="mt-4 md:mt-0 w-full md:w-48">
+              <Label htmlFor="financial-year-header" className="text-xs font-medium">Financial Year</Label>
+              <select 
+                id="financial-year-header"
+                value={financialYear}
+                onChange={(e) => setFinancialYear(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 bg-white mt-1 w-full text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
+              >
+                <option value="2024-25">2024-25 (AY 2025-26)</option>
+                <option value="2023-24">2023-24 (AY 2024-25)</option>
+              </select>
+            </div>
+          </div>
+          <p className="text-muted-foreground">
+            Calculate your income tax liability and explore all available tax-saving options in India. 
+            Compare between old and new tax regimes to make informed decisions.
+          </p>
+        </div>
+      </div>
+
+{/* Top alert removed */}
+
+      {/* Income Details Section */}
+      <Card className="mb-8 shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-xl font-semibold flex items-center">
+            <Wallet className="h-5 w-5 mr-2 text-primary" />
+            Income Details
+          </CardTitle>
+          <CardDescription>
+            Enter all your income sources for the financial year
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2 border p-5 rounded-lg bg-white shadow-sm">
+              <h3 className="text-lg font-medium mb-4">Income Sources</h3>
+              
+              <div className="mb-6">
+                <div className="flex flex-col sm:flex-row justify-between mb-6 gap-6">
+                  <div className="w-full sm:w-1/2">
+                    <Label htmlFor="salary" className="font-medium">Annual Gross Salary (₹)</Label>
+                    <Input
+                      id="salary"
+                      type="text"
+                      inputMode="numeric"
+                      value={income.salary || ''}
+                      onChange={(e) => handleIncomeChange('salary', e.target.value)}
+                      placeholder="Enter salary income"
+                      className="mt-2"
+                      style={{ appearance: 'textfield' }}
+                    />
+                  </div>
+                  
+                  <div className="w-full sm:w-1/2">
+                    <Label htmlFor="interest" className="font-medium">Interest Income (₹)</Label>
+                    <Input
+                      id="interest"
+                      type="text"
+                      inputMode="numeric"
+                      value={income.interestIncome || ''}
+                      onChange={(e) => handleIncomeChange('interestIncome', e.target.value)}
+                      placeholder="Enter interest income" 
+                      className="mt-2"
+                      style={{ appearance: 'textfield' }}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row justify-between gap-6">
+                  <div className="w-full sm:w-1/2">
+                    <Label htmlFor="rental" className="font-medium">Rental Income (₹)</Label>
+                    <Input
+                      id="rental"
+                      type="text"
+                      inputMode="numeric"
+                      value={income.rentalIncome || ''}
+                      onChange={(e) => handleIncomeChange('rentalIncome', e.target.value)}
+                      placeholder="Enter rental income"
+                      className="mt-2"
+                      style={{ appearance: 'textfield' }}
+                    />
+                  </div>
+                  
+                  <div className="w-full sm:w-1/2">
+                    <Label htmlFor="other" className="font-medium">Other Income (₹)</Label>
+                    <Input
+                      id="other"
+                      type="text"
+                      inputMode="numeric"
+                      value={income.otherIncome || ''}
+                      onChange={(e) => handleIncomeChange('otherIncome', e.target.value)}
+                      placeholder="Enter other income"
+                      className="mt-2"
+                      style={{ appearance: 'textfield' }}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-4 pt-3 border-t">
+                <div className="flex justify-between text-sm font-semibold bg-blue-50 p-3 rounded-lg border border-blue-100">
+                  <span className="font-medium">Total Income</span>
+                  <span className="text-blue-600 font-semibold">{formatCurrency(totalIncome)}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+              <h3 className="text-md font-medium mb-3 flex items-center">
+                <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />
+                Income Tips
+              </h3>
+              <ul className="space-y-3 text-sm">
+                <li className="flex items-start">
+                  <div className="mt-1 mr-2 flex-shrink-0">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M8 12l2 2 4-4"></path>
+                    </svg>
+                  </div>
+                  <span>Include all sources of income</span>
+                </li>
+                <li className="flex items-start">
+                  <div className="mt-1 mr-2 flex-shrink-0">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M8 12l2 2 4-4"></path>
+                    </svg>
+                  </div>
+                  <span>Consider rental income, interest, dividends</span>
+                </li>
+                <li className="flex items-start">
+                  <div className="mt-1 mr-2 flex-shrink-0">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M8 12l2 2 4-4"></path>
+                    </svg>
+                  </div>
+                  <span>Include capital gains if any</span>
+                </li>
+                <li className="flex items-start">
+                  <div className="mt-1 mr-2 flex-shrink-0">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M8 12l2 2 4-4"></path>
+                    </svg>
+                  </div>
+                  <span>Don't forget income from previous employer</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Deductions Section */}
+      <Card className="mb-8 shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-xl font-semibold flex items-center">
+            <span className="text-blue-500 mr-2">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 6H16V4C16 2.89 15.11 2 14 2H10C8.89 2 8 2.89 8 4V6H4C2.89 6 2 6.89 2 8V19C2 20.11 2.89 21 4 21H20C21.11 21 22 20.11 22 19V8C22 6.89 21.11 6 20 6ZM10 4H14V6H10V4ZM20 19H4V8H20V19Z" fill="currentColor"/>
+              </svg>
+            </span>
+            Tax-Saving Deductions (Section 80C & Others)
+          </CardTitle>
+          <CardDescription>
+            Enter eligible deductions to maximize your tax savings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs value={activeDeductionTab} onValueChange={setActiveDeductionTab} className="mt-2">
+            <TabsList className="inline-flex h-11 items-center justify-start bg-muted p-1 text-muted-foreground rounded-md mb-6 w-full overflow-x-auto">
+              <TabsTrigger value="80c" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-4 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                Investments
+              </TabsTrigger>
+              <TabsTrigger value="insurance" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-4 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                Insurance
+              </TabsTrigger>
+              <TabsTrigger value="health" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-4 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                Health & Education
+              </TabsTrigger>
+              <TabsTrigger value="homeloan" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-4 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                Home Loan
+              </TabsTrigger>
+              <TabsTrigger value="other" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-4 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                Special Deductions
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Investment Tab */}
+            <TabsContent value="80c" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 border p-5 rounded-lg bg-white shadow-sm">
+                  <h3 className="text-lg font-medium mb-3">Tax-Saving Investments</h3>
+                  
+                  <Accordion type="single" collapsible className="mb-6">
+                    <AccordionItem value="elss-funds">
+                      <AccordionTrigger className="text-md font-medium text-blue-500 hover:text-blue-600">
+                        📋 List of Popular ELSS Funds Eligible for Tax Savings
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-4 rounded-b-lg p-4">
+                        <Table className="bg-white rounded-lg overflow-hidden">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Fund Name</TableHead>
+                              <TableHead>Category</TableHead>
+                              <TableHead>Lock-in Period</TableHead>
+                              <TableHead>Min. SIP Amount</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            <TableRow className="border-b">
+                              <TableCell className="font-medium">Axis Long Term Equity Fund</TableCell>
+                              <TableCell>ELSS</TableCell>
+                              <TableCell>3 years</TableCell>
+                              <TableCell>₹500/month</TableCell>
+                            </TableRow>
+                            <TableRow className="border-b">
+                              <TableCell className="font-medium">DSP Tax Saver Fund</TableCell>
+                              <TableCell>ELSS</TableCell>
+                              <TableCell>3 years</TableCell>
+                              <TableCell>₹500/month</TableCell>
+                            </TableRow>
+                            <TableRow className="border-b">
+                              <TableCell className="font-medium">Mirae Asset Tax Saver Fund</TableCell>
+                              <TableCell>ELSS</TableCell>
+                              <TableCell>3 years</TableCell>
+                              <TableCell>₹500/month</TableCell>
+                            </TableRow>
+                            <TableRow className="border-b">
+                              <TableCell className="font-medium">SBI Long Term Equity Fund</TableCell>
+                              <TableCell>ELSS</TableCell>
+                              <TableCell>3 years</TableCell>
+                              <TableCell>₹500/month</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">ICICI Prudential Long Term Equity Fund</TableCell>
+                              <TableCell>ELSS</TableCell>
+                              <TableCell>3 years</TableCell>
+                              <TableCell>₹500/month</TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                  
+                  <div className="flex flex-col sm:flex-row justify-between mb-6 gap-6">
+                    <div className="w-full sm:w-1/2">
+                      <Label htmlFor="elss" className="font-medium">ELSS Mutual Funds (₹)</Label>
+                      <Input
+                        id="elss"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.elss || ''}
+                        onChange={(e) => handleDeductionChange('elss', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                    </div>
+                    
+                    <div className="w-full sm:w-1/2">
+                      <Label htmlFor="ppf" className="font-medium">PPF Investment (₹)</Label>
+                      <Input
+                        id="ppf"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.ppf || ''}
+                        onChange={(e) => handleDeductionChange('ppf', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row justify-between gap-6">
+                    <div className="w-full sm:w-1/2">
+                      <Label htmlFor="sukanya" className="font-medium">Sukanya Samriddhi Yojana (₹)</Label>
+                      <Input
+                        id="sukanya"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.sukanyaSamriddhi || ''}
+                        onChange={(e) => handleDeductionChange('sukanyaSamriddhi', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                    </div>
+                    
+                    <div className="w-full sm:w-1/2">
+                      <Label htmlFor="nsc" className="font-medium">NSC Investment (₹)</Label>
+                      <Input
+                        id="nsc"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.nsc || ''}
+                        onChange={(e) => handleDeductionChange('nsc', e.target.value)}
+                        className="mt-1"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 pt-3 border-t border-gray-200">
+                    <div className="flex justify-between text-sm font-medium bg-blue-50 p-3 rounded-lg border border-blue-100">
+                      <span>Section 80C Used</span>
+                      <span className={`font-semibold ${total80C > 150000 ? 'text-red-600' : 'text-blue-600'}`}>
+                        {formatCurrency(total80C)} / ₹1,50,000
+                      </span>
+                    </div>
+                    {total80C > 150000 && (
+                      <p className="text-xs text-red-600 mt-1">
+                        Note: Only ₹1,50,000 will be considered for tax deduction
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />
+                    Investment Tips
+                  </h3>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>PPF:</strong> Long-term tax-free returns (15-year lock-in)</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>ELSS Funds:</strong> Only tax-saving mutual fund with 3-year lock-in</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>NSC:</strong> Government backed security with guaranteed returns</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>SSY:</strong> Highest interest rate for girl child education</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Insurance Tab */}
+            <TabsContent value="insurance" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 border p-5 rounded-lg bg-white shadow-sm">
+                  <h3 className="text-lg font-medium mb-3">Insurance Premiums</h3>
+                  
+                  <div className="flex flex-col sm:flex-row justify-between mb-6 gap-6">
+                    <div className="w-full sm:w-1/2">
+                      <Label htmlFor="life-insurance" className="font-medium">Life Insurance Premium (₹)</Label>
+                      <Input
+                        id="life-insurance"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.lifeInsurance || ''}
+                        onChange={(e) => handleDeductionChange('lifeInsurance', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                    </div>
+                    
+                    <div className="w-full sm:w-1/2">
+                      <Label htmlFor="ulip" className="font-medium">ULIP Investment (₹)</Label>
+                      <Input
+                        id="ulip"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.ulip || ''}
+                        onChange={(e) => handleDeductionChange('ulip', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />
+                    Insurance Tips
+                  </h3>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Life Insurance:</strong> Choose term plans for better coverage</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>ULIPs:</strong> Consider lock-in period and charges</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span>Premium should not exceed 10% of sum assured for tax benefits</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Health & Education Tab */}
+            <TabsContent value="health" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 border p-5 rounded-lg bg-white shadow-sm">
+                  <h3 className="text-lg font-medium mb-3">Health & Education</h3>
+                  
+                  <div className="flex flex-col sm:flex-row justify-between mb-6 gap-6">
+                    <div className="w-full sm:w-1/2">
+                      <Label htmlFor="health-insurance" className="font-medium">Health Insurance Premium (80D)</Label>
+                      <Input
+                        id="health-insurance"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.healthInsurance || ''}
+                        onChange={(e) => handleDeductionChange('healthInsurance', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Self & Family: Up to ₹25,000. Senior Parents: Additional ₹50,000
+                      </p>
+                    </div>
+                    
+                    <div className="w-full sm:w-1/2">
+                      <Label htmlFor="preventive-checkup" className="font-medium">Preventive Health Checkup</Label>
+                      <Input
+                        id="preventive-checkup"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.preventiveHealthCheckup || ''}
+                        onChange={(e) => handleDeductionChange('preventiveHealthCheckup', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Maximum of ₹5,000 within the overall limit
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row justify-between gap-6">
+                    <div className="w-full sm:w-1/2">
+                      <Label htmlFor="education-loan" className="font-medium">Education Loan Interest (80E)</Label>
+                      <Input
+                        id="education-loan"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.educationLoanInterest || ''}
+                        onChange={(e) => handleDeductionChange('educationLoanInterest', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Entire interest amount is eligible for deduction
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 pt-3 border-t border-gray-200">
+                    <div className="flex justify-between text-sm">
+                      <span>Section 80D Used</span>
+                      <span className="font-medium text-blue-500">
+                        {formatCurrency(total80D)} / ₹75,000
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />
+                    Health & Education Tips
+                  </h3>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Health Insurance:</strong> Self & Family: Up to ₹25,000</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Senior Parents:</strong> Additional ₹50,000</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Education Loan:</strong> Entire interest deductible</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Home Loan Tab */}
+            <TabsContent value="homeloan" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 border p-5 rounded-lg bg-white shadow-sm">
+                  <h3 className="text-lg font-medium mb-3">Home Loan Deductions</h3>
+                  
+                  <div className="flex flex-col sm:flex-row justify-between mb-6 gap-6">
+                    <div className="w-full sm:w-1/2">
+                      <Label htmlFor="home-loan-principal" className="font-medium">Home Loan Principal (80C)</Label>
+                      <Input
+                        id="home-loan-principal"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.homeLoanPrincipal || ''}
+                        onChange={(e) => handleDeductionChange('homeLoanPrincipal', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Part of overall 80C limit of ₹1.5 lakh
+                      </p>
+                    </div>
+                    <div className="w-full sm:w-1/2">
+                      <Label htmlFor="home-loan-interest" className="font-medium">Housing Loan Interest (Max ₹2,00,000)</Label>
+                      <Input
+                        id="home-loan-interest"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.housingLoanInterest || ''}
+                        onChange={(e) => handleDeductionChange('housingLoanInterest', e.target.value)}
+                        className="mt-1"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Under Section 24, separate from 80C limit
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />
+                    Home Loan Tips
+                  </h3>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Principal:</strong> Under 80C (₹1.5 lakh limit)</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Interest:</strong> Up to ₹2 lakh under Section 24</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span>First-time buyers: Extra ₹50,000 (80EE)</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Special Deductions Tab */}
+            <TabsContent value="other" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 border p-5 rounded-lg bg-white shadow-sm">
+                  <h3 className="text-lg font-medium mb-4">Special Deductions</h3>
+                  
+                  <div className="mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between mb-6 gap-6">
+                      <div className="w-full sm:w-1/2">
+                        <Label htmlFor="nps" className="font-medium">NPS Investment (80CCD)</Label>
+                        <Input
+                          id="nps"
+                          type="text"
+                          inputMode="numeric"
+                          value={deductions.nps || ''}
+                          onChange={(e) => handleDeductionChange('nps', e.target.value)}
+                          className="mt-2"
+                          placeholder="0"
+                          style={{ appearance: 'textfield' }}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Additional ₹50,000 beyond 80C limit
+                        </p>
+                      </div>
+                      <div className="w-full sm:w-1/2">
+                        <Label htmlFor="donations" className="font-medium">Donations (80G)</Label>
+                        <Input
+                          id="donations"
+                          type="text"
+                          inputMode="numeric"
+                          value={deductions.donations || ''}
+                          onChange={(e) => handleDeductionChange('donations', e.target.value)}
+                          className="mt-2"
+                          placeholder="0"
+                          style={{ appearance: 'textfield' }}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          50% or 100% deduction based on organization
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="other-deductions" className="font-medium">Other Deductions</Label>
+                      <Input
+                        id="other-deductions"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.others || ''}
+                        onChange={(e) => handleDeductionChange('others', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Includes 80TTA, 80TTB, etc.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />
+                    Special Deductions Tips
+                  </h3>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>NPS:</strong> Extra ₹50,000 above 80C limit</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Donations:</strong> Verify eligible organizations</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Savings:</strong> Interest up to ₹10,000 (80TTA)</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+          
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            {renderSection80C()}
+            {renderSection80D()}
+            {renderSection80G()}
+            {renderSection80E()}
+            {renderSection80EEA()}
+            {renderSection80TTA()}
+            <div className="flex justify-between bg-blue-50 p-3 rounded-lg border border-blue-100 mt-2">
+              <span className="font-medium">Total Deductions</span>
+              <span className="text-blue-600 font-semibold">{formatCurrency(totalDeductions)}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Additional Tax Benefits Section */}
+      <Card className="mb-8">
+        <CardHeader className="pb-4">
+          <h2 className="text-2xl font-semibold text-foreground flex items-center">
+            <Calculator className="h-5 w-5 mr-2 text-primary" />
+            Additional Tax Benefits
+          </h2>
+        </CardHeader>
+        <CardContent>
+          <Tabs value={additionalBenefitsTab} onValueChange={setAdditionalBenefitsTab} className="mt-2">
+            <TabsList className="inline-flex h-11 items-center justify-start bg-muted p-1 text-muted-foreground rounded-md mb-6 w-full overflow-x-auto">
+              <TabsTrigger value="health" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-4 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                Health & Education
+              </TabsTrigger>
+              <TabsTrigger value="homeloan" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-4 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                Home Loan
+              </TabsTrigger>
+              <TabsTrigger value="special" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-4 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                Special Deductions
+              </TabsTrigger>
+              <TabsTrigger value="stock" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-4 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                Stock Market
+              </TabsTrigger>
+              <TabsTrigger value="other" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-4 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                Other Benefits
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Health & Education Tab */}
+            <TabsContent value="health" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 border p-5 rounded-lg bg-background shadow-sm">
+                  <h3 className="text-lg font-medium mb-4">Health & Education</h3>
+                  <div className="mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between mb-6 gap-6">
+                      <div className="w-full sm:w-1/2">
+                        <Label htmlFor="health-insurance" className="font-medium">Health Insurance Premium (80D)</Label>
+                        <Input
+                          id="health-insurance"
+                          type="text"
+                          inputMode="numeric"
+                          value={deductions.healthInsurance || ''}
+                          onChange={(e) => handleDeductionChange('healthInsurance', e.target.value)}
+                          className="mt-2"
+                          placeholder="0"
+                          style={{ appearance: 'textfield' }}
+                        />
+                      </div>
+                      <div className="w-full sm:w-1/2">
+                        <Label htmlFor="preventive-checkup" className="font-medium">Preventive Health Checkup</Label>
+                        <Input
+                          id="preventive-checkup"
+                          type="text"
+                          inputMode="numeric"
+                          value={deductions.preventiveHealthCheckup || ''}
+                          onChange={(e) => handleDeductionChange('preventiveHealthCheckup', e.target.value)}
+                          className="mt-2"
+                          placeholder="0"
+                          style={{ appearance: 'textfield' }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="education-loan" className="font-medium">Education Loan Interest (80E)</Label>
+                      <Input
+                        id="education-loan"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.educationLoanInterest || ''}
+                        onChange={(e) => handleDeductionChange('educationLoanInterest', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />
+                    Health & Education Tips
+                  </h3>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Health Insurance:</strong> Self & Family: Up to ₹25,000</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span>Parents below 60: Add'l ₹25,000</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span>Senior parents: Add'l ₹50,000</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Education Loan:</strong> Entire interest deductible</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Home Loan Tab */}
+            <TabsContent value="homeloan" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 border p-5 rounded-lg bg-background shadow-sm">
+                  <h3 className="text-lg font-medium mb-4">Home Loan</h3>
+                  <div className="mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between mb-6 gap-6">
+                      <div className="w-full sm:w-1/2">
+                        <Label htmlFor="home-loan-principal" className="font-medium">Home Loan Principal (80C)</Label>
+                        <Input
+                          id="home-loan-principal"
+                          type="text"
+                          inputMode="numeric"
+                          value={deductions.homeLoanPrincipal || ''}
+                          onChange={(e) => handleDeductionChange('homeLoanPrincipal', e.target.value)}
+                          className="mt-2"
+                          placeholder="0"
+                          style={{ appearance: 'textfield' }}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Part of overall 80C limit of ₹1.5 lakh
+                        </p>
+                      </div>
+                      <div className="w-full sm:w-1/2">
+                        <Label htmlFor="home-loan-interest" className="font-medium">Housing Loan Interest</Label>
+                        <Input
+                          id="home-loan-interest"
+                          type="text"
+                          inputMode="numeric"
+                          value={deductions.housingLoanInterest || ''}
+                          onChange={(e) => handleDeductionChange('housingLoanInterest', e.target.value)}
+                          className="mt-2"
+                          placeholder="0"
+                          style={{ appearance: 'textfield' }}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Max ₹2,00,000 under Section 24
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />
+                    Home Loan Tips
+                  </h3>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Principal:</strong> Under 80C (₹1.5L limit)</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Interest:</strong> Up to ₹2L per year</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span>First-time buyers: Extra ₹50K (80EE)</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Special Deductions Tab */}
+            <TabsContent value="special" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 border p-5 rounded-lg bg-background shadow-sm">
+                  <h3 className="text-lg font-medium mb-4">Special Deductions</h3>
+                  <div className="mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between mb-6 gap-6">
+                      <div className="w-full sm:w-1/2">
+                        <Label htmlFor="nps" className="font-medium">NPS Investment (80CCD)</Label>
+                        <Input
+                          id="nps"
+                          type="text"
+                          inputMode="numeric"
+                          value={deductions.nps || ''}
+                          onChange={(e) => handleDeductionChange('nps', e.target.value)}
+                          className="mt-2"
+                          placeholder="0"
+                          style={{ appearance: 'textfield' }}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Additional ₹50,000 beyond 80C limit
+                        </p>
+                      </div>
+                      <div className="w-full sm:w-1/2">
+                        <Label htmlFor="donations" className="font-medium">Donations (80G)</Label>
+                        <Input
+                          id="donations"
+                          type="text"
+                          inputMode="numeric"
+                          value={deductions.donations || ''}
+                          onChange={(e) => handleDeductionChange('donations', e.target.value)}
+                          className="mt-2"
+                          placeholder="0"
+                          style={{ appearance: 'textfield' }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="other-deductions" className="font-medium">Other Deductions</Label>
+                      <Input
+                        id="other-deductions"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.others || ''}
+                        onChange={(e) => handleDeductionChange('others', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />
+                    Special Deductions Tips
+                  </h3>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>NPS:</strong> Extra ₹50K above 80C limit</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Donations:</strong> 50-100% deduction</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span>Check eligible organizations</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Stock Market Tab */}
+            <TabsContent value="stock" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 border p-5 rounded-lg bg-background shadow-sm">
+                  <h3 className="text-lg font-medium mb-4">Stock Market & Trading</h3>
+                  <div className="mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between mb-6 gap-6">
+                      <div className="w-full sm:w-1/2">
+                        <Label htmlFor="equity-stcg" className="font-medium">Equity STCG Loss (Up to 1 year)</Label>
+                        <Input
+                          id="equity-stcg"
+                          type="text"
+                          inputMode="numeric"
+                          value={deductions.equitySTCG || ''}
+                          onChange={(e) => handleDeductionChange('equitySTCG', e.target.value)}
+                          className="mt-2"
+                          placeholder="0"
+                          style={{ appearance: 'textfield' }}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Can be offset against capital gains
+                        </p>
+                      </div>
+                      <div className="w-full sm:w-1/2">
+                        <Label htmlFor="equity-ltcg" className="font-medium">Equity LTCG Loss (After 1 year)</Label>
+                        <Input
+                          id="equity-ltcg"
+                          type="text"
+                          inputMode="numeric"
+                          value={deductions.equityLTCG || ''}
+                          onChange={(e) => handleDeductionChange('equityLTCG', e.target.value)}
+                          className="mt-2"
+                          placeholder="0"
+                          style={{ appearance: 'textfield' }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="debt-stcg" className="font-medium">Debt/Other STCG Loss</Label>
+                      <Input
+                        id="debt-stcg"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.debtSTCG || ''}
+                        onChange={(e) => handleDeductionChange('debtSTCG', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />
+                    Stock Market Tips
+                  </h3>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Equity STCG:</strong> 15% tax rate</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Equity LTCG:</strong> 10% above ₹1L</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Tax Harvesting:</strong> Book losses to offset gains</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Other Benefits Tab */}
+            <TabsContent value="other" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 border p-5 rounded-lg bg-background shadow-sm">
+                  <h3 className="text-lg font-medium mb-4">Other Benefits</h3>
+                  <div className="mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between mb-6 gap-6">
+                      <div className="w-full sm:w-1/2">
+                        <Label htmlFor="electric-vehicle" className="font-medium">Electric Vehicle Loan Interest (80EEB)</Label>
+                        <Input
+                          id="electric-vehicle"
+                          type="text"
+                          inputMode="numeric"
+                          value={deductions.electricVehicle || ''}
+                          onChange={(e) => handleDeductionChange('electricVehicle', e.target.value)}
+                          className="mt-2"
+                          placeholder="0"
+                          style={{ appearance: 'textfield' }}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Deduction up to ₹1.5 lakh for interest paid
+                        </p>
+                      </div>
+                      <div className="w-full sm:w-1/2">
+                        <Label htmlFor="startup-investment" className="font-medium">Startup Investment (80IAC)</Label>
+                        <Input
+                          id="startup-investment"
+                          type="text"
+                          inputMode="numeric"
+                          value={deductions.startupInvestment || ''}
+                          onChange={(e) => handleDeductionChange('startupInvestment', e.target.value)}
+                          className="mt-2"
+                          placeholder="0"
+                          style={{ appearance: 'textfield' }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="rural-development" className="font-medium">Rural Development (80JJA)</Label>
+                      <Input
+                        id="rural-development"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.ruralDevelopment || ''}
+                        onChange={(e) => handleDeductionChange('ruralDevelopment', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />
+                    Other Benefits Tips
+                  </h3>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>EV Loan:</strong> Interest deduction up to ₹1.5L</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Startups:</strong> Tax benefits for eligible investments</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>Rural Dev:</strong> Special deductions available</span>
+                    </li>
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            {renderSection80C()}
+            {renderSection80D()}
+            {renderSection80G()}
+            {renderSection80E()}
+            {renderSection80EEA()}
+            {renderSection80TTA()}
+            <div className="flex justify-between bg-blue-50 p-3 rounded-lg border border-blue-100 mt-2">
+              <span className="font-medium">Total Deductions</span>
+              <span className="text-blue-600 font-semibold">{formatCurrency(totalDeductions)}</span>
+            </div>
+          </div>
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="flex justify-between bg-blue-50 p-3 rounded-lg border border-blue-100">
+              <span className="font-medium">Total Deductions</span>
+              <span className="text-blue-600 font-semibold">{formatCurrency(totalDeductions)}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <div className="mb-4 mt-2">
+        <div className="bg-orange-200 text-orange-800 border-2 border-orange-300 p-5 rounded-lg shadow-md">
+          <div className="flex justify-between items-center">
+            <span className="font-semibold text-lg">Taxable Income</span>
+            <span className="font-bold text-lg">{formatCurrency(Math.max(0, totalIncome - totalDeductions))}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="mb-8">
+        <Button 
+          onClick={calculateTax} 
+          className="w-full py-6 text-lg bg-primary hover:bg-primary/90"
+          disabled={loading}
+        >
+          {loading ? 'Calculating...' : 'Calculate Tax Liability'}
+        </Button>
+      </div>
+
+      {result && (
+        <React.Fragment>
+          <Card className="mb-8">
+            <CardHeader className="pb-4">
+              <h2 className="text-2xl font-semibold text-foreground">Tax Calculation Result</h2>
+              <CardDescription className="mt-1">
+                Based on your inputs for Financial Year {result.financialYear}
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent>
+              {/* Tax Calculation Summary Cards */}
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold mb-4 text-foreground">Tax Calculation Summary</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Old Tax Regime Card */}
+                  <div className="border border-border rounded-lg p-5 bg-background shadow-sm">
+                    <h4 className="text-lg font-medium mb-3 text-foreground">Old Tax Regime</h4>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <h5 className="text-sm text-muted-foreground">Taxable Income</h5>
+                        <div className="flex items-baseline">
+                          <p className="text-2xl font-bold text-foreground">{formatCurrency(result.taxableIncomes.oldRegime)}</p>
+                          {totalDeductions > 0 && (
+                            <p className="text-sm text-destructive ml-2">-{formatCurrency(totalDeductions)}</p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h5 className="text-sm text-muted-foreground">Tax Liability</h5>
+                        <p className="text-2xl font-bold text-foreground">{formatCurrency(result.taxPayable.oldRegime)}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* New Tax Regime Card */}
+                  <div className="border border-border rounded-lg p-5 bg-background shadow-sm">
+                    <h4 className="text-lg font-medium mb-3 text-foreground">New Tax Regime</h4>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <h5 className="text-sm text-muted-foreground">Taxable Income</h5>
+                        <p className="text-2xl font-bold text-foreground">{formatCurrency(result.taxableIncomes.newRegime)}</p>
+                      </div>
+                      
+                      <div>
+                        <h5 className="text-sm text-muted-foreground">Tax Liability</h5>
+                        <p className="text-2xl font-bold text-foreground">{formatCurrency(result.taxPayable.newRegime)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Tax Savings Button */}
+                <div className="mt-4">
+                  <button className="w-full flex items-center justify-center bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg">
+                    <Wallet className="h-5 w-5 mr-2" />
+                    <span>💰 View Your Potential Tax Savings</span>
+                  </button>
+                </div>
+              </div>
+              
+              {/* Tabs for different views */}
+              <Tabs defaultValue="compare" className="mt-6">
+                <TabsList className="bg-gray-100 p-1 rounded-md">
+                  <TabsTrigger value="compare" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white px-4 py-2 rounded">
+                    Compare Regimes
+                  </TabsTrigger>
+                  <TabsTrigger value="oldregime" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white px-4 py-2 rounded">
+                    Old Regime
+                  </TabsTrigger>
+                  <TabsTrigger value="newregime" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white px-4 py-2 rounded">
+                    New Regime
+                  </TabsTrigger>
+                </TabsList>
+                
+                {/* Compare Tab */}
+                <TabsContent value="compare" className="mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className={`p-6 rounded-lg border ${result.recommends === 'Old Tax Regime' ? 'border-primary bg-primary/5' : 'bg-gray-50 border-gray-200'}`}>
+                      <div className="text-center mb-4">
+                        <h3 className="text-lg font-medium">Old Tax Regime</h3>
+                        <p className="text-3xl font-bold my-4">{formatCurrency(result.taxPayable.oldRegime)}</p>
+                        {result.recommends === 'Old Tax Regime' && (
+                          <div className="inline-flex items-center bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
+                            <span className="material-icons text-sm mr-1">check_circle</span>
+                            <span>Recommended for You</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="mt-4 text-sm space-y-2">
+                        <div className="flex justify-between">
+                          <span>Tax Rate</span>
+                          <span className="font-medium">Progressive (5% - 30%)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Allows Deductions</span>
+                          <span className="text-primary">Yes</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Section 80C Used</span>
+                          <span>{formatCurrency(result.section80C.used)} / ₹1,50,000</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Section 80D Used</span>
+                          <span>{formatCurrency(result.section80D.used)} / ₹75,000</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Section 80G Used</span>
+                          <span>{formatCurrency(result.section80G.used)} / ₹1,00,000</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Section 80E Used</span>
+                          <span>{formatCurrency(result.section80E.used)} / ₹2,00,000</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Section 80EEA Used</span>
+                          <span>{formatCurrency(result.section80EEA.used)} / ₹1,50,000</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Section 80TTA Used</span>
+                          <span>{formatCurrency(result.section80TTA.used)} / ₹10,000</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className={`p-6 rounded-lg border ${result.recommends === 'New Tax Regime' ? 'border-primary bg-primary/5' : 'bg-gray-50 border-gray-200'}`}>
+                      <div className="text-center mb-4">
+                        <h3 className="text-lg font-medium">New Tax Regime</h3>
+                        <p className="text-3xl font-bold my-4">{formatCurrency(result.taxPayable.newRegime)}</p>
+                        {result.recommends === 'New Tax Regime' && (
+                          <div className="inline-flex items-center bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
+                            <span className="material-icons text-sm mr-1">check_circle</span>
+                            <span>Recommended for You</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="mt-4 text-sm space-y-2">
+                        <div className="flex justify-between">
+                          <span>Tax Rate</span>
+                          <span className="font-medium">Progressive (5% - 30%)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Allows Deductions</span>
+                          <span className="text-red-600">Limited</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>More Slabs</span>
+                          <span className="text-primary">Yes</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Lower Tax Rates</span>
+                          <span className="text-primary">Yes</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Tax Savings Analysis Section */}
+                  <div className="mt-6 border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="bg-primary/5 p-4 border-b border-gray-200">
+                      <h3 className="text-lg font-medium">Tax Savings Analysis</h3>
+                    </div>
+                    <div className="p-4">
+                      <div className="mb-4">
+                        <h4 className="font-medium mb-2">Current Status:</h4>
+                        <div className="space-y-1 pl-2">
+                          <div className="flex justify-between">
+                            <span>Tax in Old Regime:</span>
+                            <span className="font-medium">{formatCurrency(result.taxPayable.oldRegime)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Tax in New Regime:</span>
+                            <span className="font-medium">{formatCurrency(result.taxPayable.newRegime)}</span>
+                          </div>
+                          <div className="flex justify-between text-primary font-medium">
+                            <span>Current Tax Saving:</span>
+                            <span>{formatCurrency(Math.abs(result.taxPayable.oldRegime - result.taxPayable.newRegime))}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-amber-50 p-4 rounded-lg mb-4 border border-amber-100">
+                        <h4 className="font-medium flex items-center text-amber-800">
+                          <span className="material-icons text-amber-500 mr-1">stars</span>
+                          Additional Savings Potential
+                        </h4>
+                        <p className="mt-2">
+                          You can save up to <span className="font-bold">₹67,500.00</span> more in tax by optimizing your investments!
+                        </p>
+                      </div>
+                      
+                      <div className="text-sm text-gray-600 p-3 bg-gray-50 rounded-lg mb-4">
+                        <h4 className="font-medium text-gray-700 mb-1">Investment-Related Tax Savings Disclaimer:</h4>
+                        <ul className="list-disc pl-5 space-y-1">
+                          <li>The projected tax savings through investments are estimates</li>
+                          <li>Investment returns can vary significantly based on market conditions</li>
+                          <li>Past performance does not guarantee future returns</li>
+                          <li>Different investment options carry different levels of risk</li>
+                          <li>Consider your risk tolerance and financial goals before investing</li>
+                          <li>Consult a financial advisor for personalized investment advice</li>
+                        </ul>
+                      </div>
+                      
+                      <div className="mt-4">
+                        <h4 className="font-medium mb-2">Savings Breakdown</h4>
+                        <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 mb-4">
+                          <h5 className="font-medium mb-2 flex items-center text-primary">
+                            <span className="material-icons text-primary mr-1">target</span>
+                            Quick Actions to Save Tax:
+                          </h5>
+                          <ul className="list-disc pl-5 space-y-1">
+                            <li>Max out your 80C: Invest in ELSS funds or PPF</li>
+                            <li>Health Insurance: Get coverage for yourself and family</li>
+                            <li>NPS Investment: Additional tax benefit under 80CCD(1B)</li>
+                          </ul>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        <Button variant="outline" className="text-primary border-gray-300 hover:bg-primary/5" asChild>
+                          <a href="/tax-harvesting">
+                            <span className="material-icons text-sm mr-1">trending_down</span>
+                            Tax Harvesting
+                          </a>
+                        </Button>
+                        <Button variant="outline" className="text-primary border-gray-300 hover:bg-primary/5" asChild>
+                          <a href="/tax-saving-investments">
+                            <span className="material-icons text-sm mr-1">savings</span>
+                            Tax-Saving Investments
+                          </a>
+                        </Button>
+                        <Button variant="outline" className="text-primary border-gray-300 hover:bg-primary/5" asChild>
+                          <a href="/tax-filing-guide">
+                            <span className="material-icons text-sm mr-1">description</span>
+                            Tax Filing Guide
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                {/* Old Regime Tab */}
+                <TabsContent value="oldregime" className="mt-4 space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <h3 className="font-medium mb-2">Old Tax Regime Details</h3>
+                    <p className="text-sm mb-4">
+                      The old tax regime allows for deductions under various sections like 80C, 80D, etc., and has the following tax slabs:
+                    </p>
+                    
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Income Range</TableHead>
+                          <TableHead>Tax Rate</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell>₹0 - ₹2,50,000</TableCell>
+                          <TableCell>Nil</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>₹2,50,001 - ₹5,00,000</TableCell>
+                          <TableCell>5%</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>₹5,00,001 - ₹10,00,000</TableCell>
+                          <TableCell>20%</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>Above ₹10,00,000</TableCell>
+                          <TableCell>30%</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                    
+                    <p className="text-sm mt-4">
+                      <strong>Plus:</strong> 4% Health and Education Cess on the tax amount
+                    </p>
+                  </div>
+                  
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h3 className="font-medium mb-2">Key Benefits of Old Regime</h3>
+                    <ul className="text-sm space-y-2">
+                      <li className="flex items-start">
+                        <span className="material-icons text-blue-500 text-sm mr-2">check_circle</span>
+                        <span>Allows for deductions under Section 80C (up to ₹1.5 lakh)</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="material-icons text-blue-500 text-sm mr-2">check_circle</span>
+                        <span>Health Insurance premium deduction under Section 80D</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="material-icons text-blue-500 text-sm mr-2">check_circle</span>
+                        <span>Housing loan interest deduction up to ₹2 lakh</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="material-icons text-blue-500 text-sm mr-2">check_circle</span>
+                        <span>Additional NPS deduction of ₹50,000 under Section 80CCD(1B)</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="material-icons text-blue-500 text-sm mr-2">check_circle</span>
+                        <span>Leave Travel Allowance (LTA) exemption</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="material-icons text-blue-500 text-sm mr-2">check_circle</span>
+                        <span>House Rent Allowance (HRA) exemption</span>
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  {/* Detailed Tax Analysis */}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden mt-4">
+                    <div className="bg-primary/5 p-4 border-b border-gray-200">
+                      <h3 className="font-medium">Detailed Tax Analysis</h3>
+                    </div>
+                    <div className="p-4">
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Income Breakdown</h4>
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg space-y-1">
+                          <div className="flex justify-between">
+                            <span>Gross Total Income:</span>
+                            <span className="font-medium">{formatCurrency(result.taxableIncome)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Salary Income:</span>
+                            <span>{formatCurrency(income.salary)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Other Income:</span>
+                            <span>{formatCurrency(income.rentalIncome + income.interestIncome + income.otherIncome)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Deductions Utilized</h4>
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg">
+                          <p className="font-medium mb-1">Section 80C ({formatCurrency(Math.min(total80C, 150000))})</p>
+                          <div className="space-y-1 pl-2 mb-3">
+                            <div className="flex justify-between text-sm">
+                              <span>PPF:</span>
+                              <span>{formatCurrency(deductions.ppf)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>ELSS:</span>
+                              <span>{formatCurrency(deductions.elss)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>Life Insurance:</span>
+                              <span>{formatCurrency(deductions.lifeInsurance)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>ULIP:</span>
+                              <span>{formatCurrency(deductions.ulip)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>Home Loan Principal:</span>
+                              <span>{formatCurrency(deductions.homeLoanPrincipal)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>Tuition Fees:</span>
+                              <span>{formatCurrency(deductions.tuitionFees)}</span>
+                            </div>
+                          </div>
+                          
+                          <p className="font-medium mb-1">Other Deductions</p>
+                          <div className="space-y-1 pl-2">
+                            <div className="flex justify-between text-sm">
+                              <span>Health Insurance (80D):</span>
+                              <span>{formatCurrency(deductions.healthInsurance)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>Home Loan Interest:</span>
+                              <span>{formatCurrency(deductions.housingLoanInterest)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>Education Loan Interest:</span>
+                              <span>{formatCurrency(deductions.educationLoanInterest)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>NPS Additional:</span>
+                              <span>{formatCurrency(deductions.nps)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>Donations:</span>
+                              <span>{formatCurrency(deductions.donations)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 bg-primary/5 p-3 rounded-lg border border-primary/20">
+                        <h5 className="font-medium mb-2">Final Tax Calculation</h5>
+                        <div className="space-y-1 pl-2">
+                          <div className="flex justify-between">
+                            <span>Taxable Income:</span>
+                            <span className="font-medium">{formatCurrency(result.taxableIncome)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Total Tax:</span>
+                            <span className="font-medium">{formatCurrency(result.taxPayable.oldRegime)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Total Deductions:</span>
+                            <span className="font-medium">{formatCurrency(totalDeductions)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                {/* New Regime Tab */}
+                <TabsContent value="newregime" className="mt-4 space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <h3 className="font-medium mb-2">New Tax Regime Details</h3>
+                    <p className="text-sm mb-4">
+                      The new tax regime offers lower tax rates but with limited deductions and exemptions. It has the following tax slabs:
+                    </p>
+                    
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Income Range</TableHead>
+                          <TableHead>Tax Rate</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell>₹0 - ₹3,00,000</TableCell>
+                          <TableCell>Nil</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>₹3,00,001 - ₹6,00,000</TableCell>
+                          <TableCell>5%</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>₹6,00,001 - ₹9,00,000</TableCell>
+                          <TableCell>10%</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>₹9,00,001 - ₹12,00,000</TableCell>
+                          <TableCell>15%</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>₹12,00,001 - ₹15,00,000</TableCell>
+                          <TableCell>20%</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>Above ₹15,00,000</TableCell>
+                          <TableCell>30%</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                    
+                    <p className="text-sm mt-4">
+                      <strong>Plus:</strong> 4% Health and Education Cess on the tax amount
+                    </p>
+                  </div>
+                  
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h3 className="font-medium mb-2">Key Features of New Regime</h3>
+                    <ul className="text-sm space-y-2">
+                      <li className="flex items-start">
+                        <span className="material-icons text-blue-500 text-sm mr-2">check_circle</span>
+                        <span>More tax slabs with lower tax rates</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="material-icons text-blue-500 text-sm mr-2">check_circle</span>
+                        <span>Higher basic exemption limit of ₹3 lakh</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="material-icons text-blue-500 text-sm mr-2">check_circle</span>
+                        <span>Standard deduction of ₹50,000 still available</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="material-icons text-blue-500 text-sm mr-2">check_circle</span>
+                        <span>Simpler to calculate with fewer deductions to track</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="material-icons text-red-500 text-sm mr-2">cancel</span>
+                        <span>Most exemptions and deductions not available (80C, 80D, HRA, etc.)</span>
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  {/* Detailed Tax Analysis - New Regime */}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden mt-4">
+                    <div className="bg-primary/5 p-4 border-b border-gray-200">
+                      <h3 className="font-medium">Detailed Tax Analysis</h3>
+                    </div>
+                    <div className="p-4">
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Income Breakdown</h4>
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg space-y-1">
+                          <div className="flex justify-between">
+                            <span>Gross Total Income:</span>
+                            <span className="font-medium">{formatCurrency(result.taxableIncome)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Salary Income:</span>
+                            <span>{formatCurrency(income.salary)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Other Income:</span>
+                            <span>{formatCurrency(income.rentalIncome + income.interestIncome + income.otherIncome)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 bg-amber-50 p-3 rounded-lg border border-amber-100">
+                        <h5 className="font-medium mb-2 text-amber-700">New Regime Benefits</h5>
+                        <div className="space-y-1 pl-2">
+                          <p className="text-sm">With the new tax regime, you benefit from:</p>
+                          <ul className="list-disc pl-5 text-sm space-y-1 mt-2">
+                            <li>Lower tax rates across multiple slabs</li>
+                            <li>Higher basic exemption limit (₹3,00,000)</li>
+                            <li>Standard deduction of ₹50,000</li>
+                            <li>Simplified tax calculation</li>
+                          </ul>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 bg-primary/5 p-3 rounded-lg border border-primary/20">
+                        <h5 className="font-medium mb-2">Final Tax Calculation</h5>
+                        <div className="space-y-1 pl-2">
+                          <div className="flex justify-between">
+                            <span>Taxable Income:</span>
+                            <span className="font-medium">{formatCurrency(result.taxableIncome)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Total Tax:</span>
+                            <span className="font-medium">{formatCurrency(result.taxPayable.newRegime)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Standard Deduction:</span>
+                            <span className="font-medium">₹50,000</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-6 bg-primary-50 p-3 rounded-lg border border-primary-100">
+                        <h5 className="font-medium mb-2 flex items-center text-primary">
+                          <span className="material-icons text-primary mr-1">lightbulb</span>
+                          Tax Planning Tip
+                        </h5>
+                        <p className="text-sm">
+                          {result.recommends === 'New Tax Regime' 
+                            ? "The New Tax Regime is better for you as your deductions are limited. You're saving by choosing the new regime with lower tax rates."
+                            : "Consider switching to the Old Tax Regime if you plan to make significant investments under Section 80C or have other eligible deductions."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+          
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Info className="h-5 w-5 mr-2 text-blue-500" />
+                Looking for More Tax Saving Options?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col">
+                  <h3 className="font-medium text-primary mb-2">Tax Harvesting</h3>
+                  <p className="text-sm text-gray-600 mb-4 flex-grow">
+                    Strategically offset capital gains and losses to minimize your tax liability.
+                  </p>
+                  <Button size="sm" variant="outline" className="text-primary border-gray-300 mt-auto" asChild>
+                    <a href="/tax-harvesting" className="flex items-center">
+                      Explore <ArrowRight className="ml-1 h-4 w-4" />
+                    </a>
+                  </Button>
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col">
+                  <h3 className="font-medium text-primary mb-2">Tax Saving Investments</h3>
+                  <p className="text-sm text-gray-600 mb-4 flex-grow">
+                    Discover investments that help you save taxes under Section 80C and other provisions.
+                  </p>
+                  <Button size="sm" variant="outline" className="text-primary border-gray-300 mt-auto" asChild>
+                    <a href="/tax-saving-investments" className="flex items-center">
+                      Explore <ArrowRight className="ml-1 h-4 w-4" />
+                    </a>
+                  </Button>
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col">
+                  <h3 className="font-medium text-primary mb-2">Government Schemes</h3>
+                  <p className="text-sm text-gray-600 mb-4 flex-grow">
+                    Explore government schemes that offer tax benefits and financial support.
+                  </p>
+                  <Button size="sm" variant="outline" className="text-primary border-gray-300 mt-auto" asChild>
+                    <a href="/government-schemes" className="flex items-center">
+                      Explore <ArrowRight className="ml-1 h-4 w-4" />
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </React.Fragment>
+      )}
+      
+      {/* Disclaimer at the bottom */}
+      <Alert className="mb-8 mt-12 border-amber-200 bg-amber-50 text-amber-800 rounded-lg shadow-sm">
+        <AlertTriangle className="h-5 w-5 text-amber-500" />
+        <AlertDescription className="text-sm">
+          <strong>Important Disclaimer:</strong> Tax calculations are based on current tax laws which may change. Investment-related tax savings assume historical performance. Past performance of investment instruments does not guarantee future returns. This calculator is for educational purposes only. Consult qualified tax and financial advisors for personalized advice.
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+}

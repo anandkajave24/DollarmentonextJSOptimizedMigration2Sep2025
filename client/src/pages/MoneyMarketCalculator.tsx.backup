@@ -1,0 +1,429 @@
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { SEO } from "@/components/SEO";
+
+export default function MoneyMarketCalculator() {
+  const [initialDeposit, setInitialDeposit] = useState(10000);
+  const [monthlyDeposit, setMonthlyDeposit] = useState(500);
+  const [interestRate, setInterestRate] = useState(4.5);
+  const [timePeriod, setTimePeriod] = useState(3);
+  const [accountType, setAccountType] = useState('standard');
+  const [minimumBalance, setMinimumBalance] = useState(2500);
+
+  // Account types with different features
+  const accountTypes = {
+    standard: { minBalance: 2500, rate: 4.5, fees: 12, checks: 6 },
+    premium: { minBalance: 10000, rate: 5.0, fees: 0, checks: 20 },
+    basic: { minBalance: 1000, rate: 3.8, fees: 25, checks: 3 }
+  };
+
+  const selectedAccount = accountTypes[accountType as keyof typeof accountTypes];
+
+  // Calculations
+  const monthlyRate = selectedAccount.rate / 100 / 12;
+  const totalMonths = timePeriod * 12;
+  
+  // Future value calculation
+  const futureValuePrincipal = initialDeposit * Math.pow(1 + monthlyRate, totalMonths);
+  const futureValueDeposits = monthlyDeposit * ((Math.pow(1 + monthlyRate, totalMonths) - 1) / monthlyRate);
+  const totalValue = futureValuePrincipal + futureValueDeposits;
+  
+  const totalDeposited = initialDeposit + (monthlyDeposit * totalMonths);
+  const totalInterest = totalValue - totalDeposited;
+  const annualFees = selectedAccount.fees;
+  const totalFees = annualFees * timePeriod;
+  const netValue = totalValue - totalFees;
+  const netInterest = netValue - totalDeposited;
+
+  // Monthly breakdown
+  const monthlyData = [];
+  for (let month = 0; month <= totalMonths; month++) {
+    const principal = initialDeposit * Math.pow(1 + monthlyRate, month);
+    const deposits = month === 0 ? 0 : monthlyDeposit * ((Math.pow(1 + monthlyRate, month) - 1) / monthlyRate);
+    const balance = principal + deposits;
+    const feesAccrued = (month / 12) * annualFees;
+    const netBalance = balance - feesAccrued;
+    
+    monthlyData.push({
+      month,
+      balance,
+      netBalance,
+      deposited: initialDeposit + (monthlyDeposit * month),
+      interest: balance - (initialDeposit + (monthlyDeposit * month))
+    });
+  }
+
+  // Comparison with other accounts
+  const comparisonData = Object.entries(accountTypes).map(([type, account]) => {
+    const rate = account.rate / 100 / 12;
+    const value = initialDeposit * Math.pow(1 + rate, totalMonths) + 
+                  monthlyDeposit * ((Math.pow(1 + rate, totalMonths) - 1) / rate);
+    const fees = account.fees * timePeriod;
+    
+    return {
+      type: type.charAt(0).toUpperCase() + type.slice(1),
+      grossValue: value,
+      netValue: value - fees,
+      fees,
+      rate: account.rate
+    };
+  });
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatNumber = (num: number, decimals: number = 2) => {
+    return num.toLocaleString('en-US', { 
+      minimumFractionDigits: decimals, 
+      maximumFractionDigits: decimals 
+    });
+  };
+
+  return (
+    <div className="w-full p-6 space-y-6">
+      <SEO 
+        title="Money Market Account Calculator - High-Yield Savings"
+        description="Calculate money market account returns with tiered interest rates and check-writing privileges. Compare account types and optimize your savings strategy."
+        keywords="money market calculator, MMA calculator, high yield savings, tiered interest rates, check writing account, liquid savings"
+        canonical="https://dollarmento.com/money-market-calculator"
+      />
+      
+      {/* Page Header */}
+      <div className="space-y-2">
+        <h1 className="text-4xl font-bold text-gray-900">Money Market Account Calculator</h1>
+        <p className="text-sm text-gray-600">
+          Calculate money market account returns with tiered interest rates and account features
+        </p>
+      </div>
+
+      <div className="grid lg:grid-cols-5 gap-6">
+          {/* Input Panel - 40% width */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <span className="w-4 h-4 bg-blue-500 rounded"></span>
+                  Account Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <Label htmlFor="accountType">Account Type</Label>
+                  <Select value={accountType} onValueChange={setAccountType}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="basic">Basic MMA (3.8% APY)</SelectItem>
+                      <SelectItem value="standard">Standard MMA (4.5% APY)</SelectItem>
+                      <SelectItem value="premium">Premium MMA (5.0% APY)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="initialDeposit" className="flex items-center gap-1">
+                      Initial Deposit
+                      <span className="text-blue-500 cursor-help" title="Opening deposit amount">(i)</span>
+                    </Label>
+                    <Input
+                      id="initialDeposit"
+                      type="number"
+                      value={initialDeposit}
+                      onChange={(e) => setInitialDeposit(Number(e.target.value))}
+                      className="mt-1"
+                      min="1000"
+                      step="1000"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="monthlyDeposit" className="flex items-center gap-1">
+                      Monthly Deposit
+                      <span className="text-blue-500 cursor-help" title="Regular monthly contributions">(i)</span>
+                    </Label>
+                    <Input
+                      id="monthlyDeposit"
+                      type="number"
+                      value={monthlyDeposit}
+                      onChange={(e) => setMonthlyDeposit(Number(e.target.value))}
+                      className="mt-1"
+                      min="0"
+                      step="100"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="timePeriod" className="flex items-center gap-1">
+                    Time Period (Years)
+                    <span className="text-blue-500 cursor-help" title="How long you plan to maintain the account">(i)</span>
+                  </Label>
+                  <Input
+                    id="timePeriod"
+                    type="number"
+                    value={timePeriod}
+                    onChange={(e) => setTimePeriod(Number(e.target.value))}
+                    className="mt-1"
+                    min="1"
+                    max="10"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <span className="w-4 h-4 bg-green-500 rounded"></span>
+                  Account Features
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <div className="text-sm font-medium mb-2">{accountType.charAt(0).toUpperCase() + accountType.slice(1)} MMA Features</div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Interest Rate (APY):</span>
+                        <span className="font-medium">{formatNumber(selectedAccount.rate)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Minimum Balance:</span>
+                        <span className="font-medium">{formatCurrency(selectedAccount.minBalance)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Annual Fee:</span>
+                        <span className="font-medium">{formatCurrency(selectedAccount.fees)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Monthly Check Limit:</span>
+                        <span className="font-medium">{selectedAccount.checks} checks</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* How to Use Guide */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-medium">How to Use This Calculator</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex gap-2">
+                    <span className="font-medium text-blue-600">1.</span>
+                    <span>Choose your money market account type</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="font-medium text-blue-600">2.</span>
+                    <span>Enter initial deposit and monthly contributions</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="font-medium text-blue-600">3.</span>
+                    <span>Set your investment timeline</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="font-medium text-blue-600">4.</span>
+                    <span>Compare account types and features</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Results Panel - 60% width */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Account Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <span className="w-4 h-4 bg-green-500 rounded"></span>
+                  Account Projection
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{formatCurrency(netValue)}</div>
+                    <div className="text-sm text-gray-600">Net Account Value</div>
+                  </div>
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{formatCurrency(totalDeposited)}</div>
+                    <div className="text-sm text-gray-600">Total Deposited</div>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">{formatCurrency(netInterest)}</div>
+                    <div className="text-sm text-gray-600">Net Interest Earned</div>
+                  </div>
+                  <div className="text-center p-4 bg-orange-50 rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600">{formatCurrency(totalFees)}</div>
+                    <div className="text-sm text-gray-600">Total Fees</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Growth Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-medium">Account Growth Over Time</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={monthlyData.filter((_, i) => i % 6 === 0)}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" tickFormatter={(value) => `${Math.floor(value/12)}y`} />
+                      <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`} />
+                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                      <Line type="monotone" dataKey="deposited" stroke="#6b7280" strokeWidth={2} name="Total Deposited" />
+                      <Line type="monotone" dataKey="balance" stroke="#10b981" strokeWidth={2} name="Gross Balance" />
+                      <Line type="monotone" dataKey="netBalance" stroke="#3b82f6" strokeWidth={2} name="Net Balance" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Account Comparison */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-medium">Account Type Comparison</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={comparisonData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="type" />
+                      <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`} />
+                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                      <Bar dataKey="netValue" fill="#3b82f6" name="Net Value" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-4 space-y-2 text-sm">
+                  {comparisonData.map((account, index) => (
+                    <div key={index} className={`flex justify-between p-2 rounded ${
+                      account.type.toLowerCase() === accountType ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'
+                    }`}>
+                      <span className="font-medium">{account.type}</span>
+                      <span>{formatCurrency(account.netValue)} ({formatNumber(account.rate)}% APY)</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Liquidity Features */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <span className="w-4 h-4 bg-yellow-500 rounded"></span>
+                  Liquidity & Access
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 text-sm">
+                  <div className="p-3 bg-yellow-50 rounded-lg">
+                    <div className="font-medium mb-2">Monthly Transaction Limits</div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span>Check Writing:</span>
+                        <span className="font-medium">{selectedAccount.checks} checks/month</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Electronic Transfers:</span>
+                        <span className="font-medium">6 transfers/month (Reg D)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>ATM Withdrawals:</span>
+                        <span className="font-medium">Unlimited</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Debit Card Access:</span>
+                      <span className="font-medium text-green-600">✓ Available</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Online Banking:</span>
+                      <span className="font-medium text-green-600">✓ Full Access</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Mobile Deposits:</span>
+                      <span className="font-medium text-green-600">✓ Supported</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>FDIC Insured:</span>
+                      <span className="font-medium text-green-600">✓ Up to $250K</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Educational Content Section */}
+        <div className="w-full mt-12 space-y-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                ✓ Benefits of the Money Market
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-2">
+              <p><strong>Rates of Interest Are Higher</strong></p>
+              <p>Money market accounts usually pay higher interest than regular savings accounts.</p>
+              
+              <p><strong>Limited Writing of Checks</strong></p>
+              <p>Most money market accounts let you write a few checks and use your debit card.</p>
+              
+              <p><strong>FDIC Insured</strong></p>
+              <p>Each bank's money market accounts are FDIC insured for up to $250,000 per depositor.</p>
+              
+              <p><strong>Benefits of Tiered Rates</strong></p>
+              <p>Tiered rate structures often give higher interest rates to accounts with larger balances.</p>
+            </CardContent>
+          </Card>
+
+
+
+          {/* Final Call to Action */}
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardContent className="p-6 text-center">
+              <h3 className="text-xl font-bold text-blue-800 mb-2">Optimize Your Money Market Returns Today</h3>
+              <p className="text-gray-700 text-sm mb-4">
+                Find the perfect money market account for your needs with our comprehensive calculator. Balance accessibility, rates, and fees to maximize your savings growth.
+              </p>
+              <Button 
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+              >
+                Compare Money Market Options Now
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

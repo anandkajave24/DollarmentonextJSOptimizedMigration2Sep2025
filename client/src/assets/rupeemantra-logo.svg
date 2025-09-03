@@ -1,0 +1,58 @@
+
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mantraGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="50%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FBBF24" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.3"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- Outer ring with mantra-style pattern -->
+  <circle cx="100" cy="100" r="85" fill="none" stroke="url(#mantraGradient)" stroke-width="3"/>
+  
+  <!-- Inner meditation circles -->
+  <circle cx="100" cy="100" r="65" fill="none" stroke="url(#mantraGradient)" stroke-width="2" opacity="0.7"/>
+  <circle cx="100" cy="100" r="45" fill="none" stroke="url(#mantraGradient)" stroke-width="1.5" opacity="0.5"/>
+  
+  <!-- Central rupee symbol with spiritual elements -->
+  <g fill="url(#mantraGradient)">
+    <!-- Rupee symbol base -->
+    <path d="M90 70h20c8 0 14 6 14 14s-6 14-14 14h-8l12 20h-8l-10-18h-6v18h-6V70z"/>
+    <path d="M96 76v12h14c4 0 8-4 8-8s-4-4-8-4h-14z"/>
+    <rect x="90" y="82" width="24" height="2"/>
+    
+    <!-- Meditation dots around rupee -->
+    <circle cx="85" cy="85" r="2" opacity="0.8"/>
+    <circle cx="115" cy="85" r="2" opacity="0.8"/>
+    <circle cx="85" cy="115" r="2" opacity="0.8"/>
+    <circle cx="115" cy="115" r="2" opacity="0.8"/>
+  </g>
+  
+  <!-- Central glow effect -->
+  <circle cx="100" cy="100" r="25" fill="url(#centerGlow)"/>
+  
+  <!-- Decorative mantra-style elements -->
+  <g fill="url(#mantraGradient)" opacity="0.6">
+    <!-- Top -->
+    <path d="M100 25 L105 35 L95 35 Z"/>
+    <!-- Right -->
+    <path d="M175 100 L165 95 L165 105 Z"/>
+    <!-- Bottom -->
+    <path d="M100 175 L95 165 L105 165 Z"/>
+    <!-- Left -->
+    <path d="M25 100 L35 105 L35 95 Z"/>
+  </g>
+  
+  <!-- Subtle energy waves -->
+  <g fill="none" stroke="url(#mantraGradient)" stroke-width="1" opacity="0.3">
+    <path d="M60 60 Q100 40 140 60"/>
+    <path d="M60 140 Q100 160 140 140"/>
+    <path d="M60 60 Q40 100 60 140"/>
+    <path d="M140 60 Q160 100 140 140"/>
+  </g>
+</svg>

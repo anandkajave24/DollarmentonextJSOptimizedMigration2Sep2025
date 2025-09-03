@@ -1,0 +1,50 @@
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />
+                    Investment Tips
+                  </h3>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>PPF:</strong> Long-term tax-free returns (15-year lock-in)</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 12l2 2 4-4"></path>
+                        </svg>
+                      </div>
+                      <span><strong>ELSS Funds:</strong> Only tax-saving mutual fund with 3-year lock-in</span>
+                    </li>
+                    <li className="flex items-start">
+                      <div className="mt-1 mr-2 flex-shrink-0">
+--
+                      <Label htmlFor="ulip" className="font-medium">ULIP Investment (₹)</Label>
+                      <Input
+                        id="ulip"
+                        type="text"
+                        inputMode="numeric"
+                        value={deductions.ulip || ''}
+                        onChange={(e) => handleDeductionChange('ulip', e.target.value)}
+                        className="mt-2"
+                        placeholder="0"
+                        style={{ appearance: 'textfield' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                  <h3 className="text-md font-medium mb-3 flex items-center">
+                    <Lightbulb className="h-5 w-5 text-blue-500 mr-2" />

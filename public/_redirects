@@ -1,0 +1,9 @@
+# Netlify/Vercel style redirects for modern hosting platforms
+# www to non-www redirect
+https://www.dollarmento.com/* https://dollarmento.com/:splat 301!
+
+# SPA fallback - all routes go to index.html
+/*    /index.html   200
+
+# API routes should not be redirected
+/api/*  /api/:splat  200

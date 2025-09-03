@@ -1,0 +1,16 @@
+/* Animations for Relationship with Money page */
+
+@keyframes progressFill {
+  0% {
+    width: 0;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.animate-progress-fill {
+  animation: progressFill 2s ease-in-out forwards;
+}
+
+/* Custom styling for tabs has been removed to use the global pill-style tabs */
