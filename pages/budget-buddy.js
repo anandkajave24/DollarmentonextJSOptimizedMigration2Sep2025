@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import BudgetBuddy from '@/pages/BudgetBuddy';
 
-// Hybrid approach: SSG for educational content + ISR for personalized budget insights
-export async function getStaticProps() {
+// Use SSR to avoid context issues during build time
+export async function getServerSideProps() {
   const budgetBuddyContent = {
     title: "Budget Buddy - Personal Budget Dashboard & Financial Planning Assistant",
     description: "Your intelligent budget companion for tracking expenses, managing finances, and achieving money goals. Get personalized insights, spending analysis, and budget optimization recommendations with real-time financial guidance.",
