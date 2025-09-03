@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 
-// Hybrid approach: SSG for educational content + CSR for interactive word search game
-export async function getStaticProps() {
+// Use SSR to ensure build safety with complex data structures
+export async function getServerSideProps() {
   const wordSearchContent = {
     title: "Financial Word Search - Educational Money Management Game",
     description: "Interactive financial word search game for learning money management terms, investment vocabulary, and financial concepts. Educational gaming approach to financial literacy.",

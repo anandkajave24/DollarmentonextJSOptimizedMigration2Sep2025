@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 
-// Hybrid approach: SSG for educational content + CSR for interactive life management
-export async function getStaticProps() {
+// Use SSR to ensure build safety with complex data structures
+export async function getServerSideProps() {
   const lifeManagerContent = {
     title: "Smart Life Manager - Complete Financial Life Organization Tool",
     description: "Comprehensive life management tool integrating financial planning, goal tracking, budget management, and life milestone planning. Organize your entire financial life with smart automation and strategic insights.",

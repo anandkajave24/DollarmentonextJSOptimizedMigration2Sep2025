@@ -1,8 +1,8 @@
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 
-// Hybrid approach: SSG for educational content + CSR for interactive growth tracking
-export async function getStaticProps() {
+// Use SSR to ensure build safety with complex data structures
+export async function getServerSideProps() {
   const growthContent = {
     title: "Financial Growth Levels - Track Your Money Management Progress",
     description: "Assess and track your financial growth through structured levels and milestones. Build financial literacy, improve money management skills, and progress toward financial independence with our comprehensive growth framework.",
