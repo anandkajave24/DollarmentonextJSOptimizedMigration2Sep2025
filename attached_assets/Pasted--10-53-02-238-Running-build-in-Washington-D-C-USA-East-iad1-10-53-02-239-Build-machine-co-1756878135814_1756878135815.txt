@@ -1,0 +1,105 @@
+[10:53:02.238] Running build in Washington, D.C., USA (East) – iad1
+[10:53:02.239] Build machine configuration: 2 cores, 8 GB
+[10:53:02.281] Cloning github.com/anandkajave24/DollarmentonextJSOptimizedMigration2Sep2025 (Branch: main, Commit: af54499)
+[10:53:02.394] Previous build caches not available
+[10:53:03.090] Cloning completed: 809.000ms
+[10:53:03.523] Running "vercel build"
+[10:53:03.919] Vercel CLI 46.1.1
+[10:53:04.309] Installing dependencies...
+[10:53:08.997] npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+[10:53:08.999] npm warn deprecated gm@1.25.1: The gm module has been sunset. Please migrate to an alternative. https://github.com/aheckmann/gm?tab=readme-ov-file#2025-02-24-this-project-is-not-maintained
+[10:53:10.147] npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+[10:53:10.184] npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+[10:53:25.183] 
+[10:53:25.184] added 601 packages in 21s
+[10:53:25.184] 
+[10:53:25.184] 75 packages are looking for funding
+[10:53:25.185]   run npm fund for details
+[10:53:25.247] Detected Next.js version: 15.5.2
+[10:53:25.248] Running "npm run build"
+[10:53:25.363] 
+[10:53:25.364] > rest-express@1.0.0 build
+[10:53:25.364] > next build
+[10:53:25.364] 
+[10:53:25.958] Attention: Next.js now collects completely anonymous telemetry regarding usage.
+[10:53:25.959] This information is used to shape Next.js' roadmap and prioritize features.
+[10:53:25.960] You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+[10:53:25.960] https://nextjs.org/telemetry
+[10:53:25.960] 
+[10:53:26.016]    ▲ Next.js 15.5.2
+[10:53:26.017]    - Environments: .env.production
+[10:53:26.017]    - Experiments (use with caution):
+[10:53:26.017]      · optimizePackageImports
+[10:53:26.017] 
+[10:53:26.104]    Linting and checking validity of types ...
+[10:54:10.381] Failed to compile.
+[10:54:10.382] 
+[10:54:10.382] ./server/vite.ts:39:5
+[10:54:10.382] Type error: Type '{ middlewareMode: boolean; hmr: { server: Server<typeof IncomingMessage, typeof ServerResponse>; }; allowedHosts: boolean; }' is not assignable to type 'ServerOptions'.
+[10:54:10.382]   Types of property 'allowedHosts' are incompatible.
+[10:54:10.382]     Type 'boolean' is not assignable to type 'true | string[] | undefined'.
+[10:54:10.382] 
+[10:54:10.382] [0m [90m 37 |[39m       }[33m,[39m
+[10:54:10.382]  [90m 38 |[39m     }[33m,[39m
+[10:54:10.383] [31m[1m>[22m[39m[90m 39 |[39m     server[33m:[39m serverOptions[33m,[39m
+[10:54:10.383]  [90m    |[39m     [31m[1m^[22m[39m
+[10:54:10.383]  [90m 40 |[39m     appType[33m:[39m [32m"custom"[39m[33m,[39m
+[10:54:10.383]  [90m 41 |[39m   })[33m;[39m
+[10:54:10.383]  [90m 42 |[39m[0m
+[10:54:10.435] Next.js build worker exited with code: 1 and signal: null
+[10:54:10.454] Error: Command "npm run build" exited with 1
+ChatGPT said:
+
+Got it ✅ — your build reached the Next.js build step but failed because of a TypeScript typing error in server/vite.ts.
+
+The error:
+
+Type '{ middlewareMode: boolean; hmr: { server: Server<typeof IncomingMessage, typeof ServerResponse>; }; allowedHosts: boolean; }' is not assignable to type 'ServerOptions'.
+  Types of property 'allowedHosts' are incompatible.
+    Type 'boolean' is not assignable to type 'true | string[] | undefined'.
+
+🔎 What it means
+
+In your code you have something like:
+
+const serverOptions = {
+  middlewareMode: true,
+  hmr: { server },
+  allowedHosts: false, // ❌ WRONG type
+};
+
+
+But in Vite’s ServerOptions type, allowedHosts expects:
+
+true
+
+string[]
+
+or undefined
+
+It does not accept boolean values other than true.
+
+✅ Fix
+
+Update your vite.ts:
+
+const serverOptions = {
+  middlewareMode: true,
+  hmr: { server },
+  // ❌ allowedHosts: false,
+  // ✅ either remove it, or use a valid type:
+  allowedHosts: true,       // allows all
+  // OR
+  allowedHosts: ["localhost", "yourdomain.com"], // restrict
+};
+
+
+If you don’t need host restrictions, just remove allowedHosts entirely.
+
+🚀 Next Step
+
+Fix server/vite.ts line ~39 as shown.
+
+Commit & push changes to GitHub (git add . && git commit -m "fix: vite allowedHosts type" && git push origin main).
+
+Retry deployment in Vercel → it should pass the build step.
