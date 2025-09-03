@@ -93,7 +93,7 @@ class NSWealthAPIService {
 
   constructor() {
     this.config = {
-      baseURL: import.meta.env.VITE_NS_WEALTH_API_URK || 'https://api.nswealth.com',
+      baseURL: process.env.NEXT_PUBLIC_NS_WEALTH_API_URL || 'https://api.nswealth.com',
       apiVersion: 'v1',
       timeout: 30000,
       retryAttempts: 3

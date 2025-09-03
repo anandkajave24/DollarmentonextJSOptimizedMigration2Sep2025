@@ -1,0 +1,48 @@
+[21:12:28.950] Running build in Washington, D.C., USA (East) – iad1
+[21:12:28.961] Build machine configuration: 2 cores, 8 GB
+[21:12:29.043] Cloning github.com/anandkajave24/DollarmentonextJSOptimizedMigration2Sep2025 (Branch: main, Commit: c6411df)
+[21:12:32.552] Previous build caches not available
+[21:12:33.666] Cloning completed: 4.621s
+[21:12:34.187] Running "vercel build"
+[21:12:34.775] Vercel CLI 46.1.1
+[21:12:35.187] Installing dependencies...
+[21:12:39.864] npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+[21:12:39.988] npm warn deprecated gm@1.25.1: The gm module has been sunset. Please migrate to an alternative. https://github.com/aheckmann/gm?tab=readme-ov-file#2025-02-24-this-project-is-not-maintained
+[21:12:41.189] npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+[21:12:41.238] npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+[21:12:56.823] 
+[21:12:56.825] added 601 packages in 21s
+[21:12:56.825] 
+[21:12:56.825] 75 packages are looking for funding
+[21:12:56.825]   run `npm fund` for details
+[21:12:56.871] Detected Next.js version: 15.5.2
+[21:12:56.872] Running "npm run build"
+[21:12:56.986] 
+[21:12:56.986] > rest-express@1.0.0 build
+[21:12:56.986] > next build
+[21:12:56.986] 
+[21:12:57.969] Attention: Next.js now collects completely anonymous telemetry regarding usage.
+[21:12:57.970] This information is used to shape Next.js' roadmap and prioritize features.
+[21:12:57.970] You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+[21:12:57.970] https://nextjs.org/telemetry
+[21:12:57.970] 
+[21:12:58.026]    ▲ Next.js 15.5.2
+[21:12:58.026]    - Environments: .env.production
+[21:12:58.026]    - Experiments (use with caution):
+[21:12:58.026]      · optimizePackageImports
+[21:12:58.027] 
+[21:12:58.119]    Linting and checking validity of types ...
+[21:14:35.051] Failed to compile.
+[21:14:35.051] 
+[21:14:35.051] ./client/src/services/nsWealthAPI.ts:96:28
+[21:14:35.052] Type error: Property 'env' does not exist on type 'ImportMeta'.
+[21:14:35.052] 
+[21:14:35.052] [0m [90m 94 |[39m   constructor() {
+[21:14:35.052]  [90m 95 |[39m     [36mthis[39m[33m.[39mconfig [33m=[39m {
+[21:14:35.052] [31m[1m>[22m[39m[90m 96 |[39m       baseURL[33m:[39m [36mimport[39m[33m.[39mmeta[33m.[39menv[33m.[39m[33mVITE_NS_WEALTH_API_URK[39m [33m||[39m [32m'https://api.nswealth.com'[39m[33m,[39m
+[21:14:35.052]  [90m    |[39m                            [31m[1m^[22m[39m
+[21:14:35.052]  [90m 97 |[39m       apiVersion[33m:[39m [32m'v1'[39m[33m,[39m
+[21:14:35.053]  [90m 98 |[39m       timeout[33m:[39m [35m30000[39m[33m,[39m
+[21:14:35.053]  [90m 99 |[39m       retryAttempts[33m:[39m [35m3[39m[0m
+[21:14:35.135] Next.js build worker exited with code: 1 and signal: null
+[21:14:35.155] Error: Command "npm run build" exited with 1
