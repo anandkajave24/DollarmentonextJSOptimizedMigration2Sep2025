@@ -398,8 +398,9 @@ export function CalculatorRouter() {
       
       {/* Fallback for any calculator routes not in our catalog */}
       <Route path="/:calculatorRoute">
-        {(params) => {
-          const route = params?.calculatorRoute;
+        {(params: { calculatorRoute?: string } | undefined) => {
+          if (!params) return null;
+          const route = params.calculatorRoute;
           // Only handle routes that end with -calculator
           if (!route || !route.endsWith('-calculator')) return null;
           

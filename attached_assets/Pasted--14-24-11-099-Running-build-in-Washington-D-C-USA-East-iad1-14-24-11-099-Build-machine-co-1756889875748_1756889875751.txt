@@ -1,0 +1,92 @@
+[14:24:11.099] Running build in Washington, D.C., USA (East) – iad1
+[14:24:11.099] Build machine configuration: 2 cores, 8 GB
+[14:24:11.116] Cloning github.com/anandkajave24/DollarmentonextJSOptimizedMigration2Sep2025 (Branch: main, Commit: 06e101c)
+[14:24:11.257] Previous build caches not available
+[14:24:11.921] Cloning completed: 805.000ms
+[14:24:12.381] Running "vercel build"
+[14:24:12.769] Vercel CLI 46.1.1
+[14:24:13.156] Installing dependencies...
+[14:24:17.675] npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+[14:24:17.814] npm warn deprecated gm@1.25.1: The gm module has been sunset. Please migrate to an alternative. https://github.com/aheckmann/gm?tab=readme-ov-file#2025-02-24-this-project-is-not-maintained
+[14:24:18.900] npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+[14:24:18.902] npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+[14:24:33.969] 
+[14:24:33.969] added 601 packages in 21s
+[14:24:33.970] 
+[14:24:33.970] 75 packages are looking for funding
+[14:24:33.971]   run npm fund for details
+[14:24:34.030] Detected Next.js version: 15.5.2
+[14:24:34.031] Running "next build"
+[14:24:34.637] Attention: Next.js now collects completely anonymous telemetry regarding usage.
+[14:24:34.638] This information is used to shape Next.js' roadmap and prioritize features.
+[14:24:34.638] You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+[14:24:34.639] https://nextjs.org/telemetry
+[14:24:34.639] 
+[14:24:34.690]    ▲ Next.js 15.5.2
+[14:24:34.691]    - Environments: .env.production
+[14:24:34.691]    - Experiments (use with caution):
+[14:24:34.692]      · optimizePackageImports
+[14:24:34.692] 
+[14:24:34.781]    Linting and checking validity of types ...
+[14:26:12.740] Failed to compile.
+[14:26:12.741] 
+[14:26:12.741] ./client/src/components/calculators/CalculatorRouter.tsx:402:25
+[14:26:12.741] Type error: 'params' is possibly 'undefined'.
+[14:26:12.741] 
+[14:26:12.741] [0m [90m 400 |[39m       [33m<[39m[33mRoute[39m path[33m=[39m[32m"/:calculatorRoute"[39m[33m>[39m
+[14:26:12.741]  [90m 401 |[39m         {(params) [33m=>[39m {
+[14:26:12.742] [31m[1m>[22m[39m[90m 402 |[39m           [36mconst[39m route [33m=[39m params[33m?[39m[33m.[39mcalculatorRoute[33m;[39m
+[14:26:12.742]  [90m     |[39m                         [31m[1m^[22m[39m
+[14:26:12.742]  [90m 403 |[39m           [90m// Only handle routes that end with -calculator[39m
+[14:26:12.742]  [90m 404 |[39m           [36mif[39m ([33m![39mroute [33m||[39m [33m![39mroute[33m.[39mendsWith([32m'-calculator'[39m)) [36mreturn[39m [36mnull[39m[33m;[39m
+[14:26:12.742]  [90m 405 |[39m           [0m
+[14:26:12.820] Next.js build worker exited with code: 1 and signal: null
+[14:26:12.832] Error: Command "next build" exited with 1
+ChatGPT said:
+
+Thanks for sharing the updated build log 🙏
+
+Your code now has:
+
+const route = params?.calculatorRoute;
+if (!route || !route.endsWith('-calculator')) return null;
+
+
+That should solve it logically.
+But TypeScript is still treating params as possibly undefined because of the way the Route render prop is typed.
+
+🔧 Fix Options
+✅ Option 1: Add a type to params
+
+Tell TypeScript what params looks like:
+
+<Route path="/:calculatorRoute">
+  {(params: { calculatorRoute?: string }) => {
+    const route = params?.calculatorRoute;
+    if (!route || !route.endsWith('-calculator')) return null;
+
+    // ...rest of your logic
+  }}
+</Route>
+
+✅ Option 2: Early return if params is falsy
+<Route path="/:calculatorRoute">
+  {(params) => {
+    if (!params) return null;
+    const route = params.calculatorRoute;
+    if (!route || !route.endsWith('-calculator')) return null;
+
+    // ...rest of your logic
+  }}
+</Route>
+
+✅ Option 3: Non-null assertion (last resort)
+
+If you know params will always exist:
+
+const route = params!.calculatorRoute;
+
+
+⚠️ But this skips TypeScript safety and may crash at runtime if params is missing.
+
+👉 I recommend Option 1 (typing) since it’s the cleanest and keeps strict TypeScript happy on Vercel builds.
