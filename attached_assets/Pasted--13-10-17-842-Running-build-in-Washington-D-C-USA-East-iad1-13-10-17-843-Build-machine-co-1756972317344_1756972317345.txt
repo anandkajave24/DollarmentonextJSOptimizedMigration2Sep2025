@@ -1,0 +1,58 @@
+[13:10:17.842] Running build in Washington, D.C., USA (East) – iad1
+[13:10:17.843] Build machine configuration: 2 cores, 8 GB
+[13:10:17.857] Cloning github.com/anandkajave24/DollarmentonextJSOptimizedMigration2Sep2025 (Branch: main, Commit: 332f1bd)
+[13:10:18.019] Previous build caches not available
+[13:10:18.713] Cloning completed: 856.000ms
+[13:10:19.083] Running "vercel build"
+[13:10:19.467] Vercel CLI 47.0.4
+[13:10:19.855] Installing dependencies...
+[13:10:24.546] npm warn deprecated gm@1.25.1: The gm module has been sunset. Please migrate to an alternative. https://github.com/aheckmann/gm?tab=readme-ov-file#2025-02-24-this-project-is-not-maintained
+[13:10:24.577] npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+[13:10:25.651] npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+[13:10:25.746] npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+[13:10:40.352] 
+[13:10:40.353] added 601 packages in 20s
+[13:10:40.353] 
+[13:10:40.354] 75 packages are looking for funding
+[13:10:40.354]   run `npm fund` for details
+[13:10:40.407] Detected Next.js version: 15.5.2
+[13:10:40.408] Running "npm ci && npm run build"
+[13:10:48.151] npm warn deprecated gm@1.25.1: The gm module has been sunset. Please migrate to an alternative. https://github.com/aheckmann/gm?tab=readme-ov-file#2025-02-24-this-project-is-not-maintained
+[13:10:48.214] npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+[13:10:55.734] 
+[13:10:55.735] added 516 packages, and audited 517 packages in 15s
+[13:10:55.735] 
+[13:10:55.735] 67 packages are looking for funding
+[13:10:55.736]   run `npm fund` for details
+[13:10:55.737] 
+[13:10:55.737] 2 vulnerabilities (1 low, 1 critical)
+[13:10:55.738] 
+[13:10:55.738] To address all issues, run:
+[13:10:55.738]   npm audit fix
+[13:10:55.738] 
+[13:10:55.738] Run `npm audit` for details.
+[13:10:55.902] 
+[13:10:55.903] > rest-express@1.0.0 build
+[13:10:55.903] > next build
+[13:10:55.903] 
+[13:10:56.519] Attention: Next.js now collects completely anonymous telemetry regarding usage.
+[13:10:56.520] This information is used to shape Next.js' roadmap and prioritize features.
+[13:10:56.521] You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+[13:10:56.521] https://nextjs.org/telemetry
+[13:10:56.521] 
+[13:10:56.579]    ▲ Next.js 15.5.2
+[13:10:56.579]    - Environments: .env.production
+[13:10:56.579]    - Experiments (use with caution):
+[13:10:56.580]      · optimizePackageImports
+[13:10:56.580] 
+[13:10:56.665]    Linting and checking validity of types ...
+[13:10:56.781] It looks like you're trying to use TypeScript but do not have the required package(s) installed.
+[13:10:56.783] 
+[13:10:56.783] Please install typescript by running:
+[13:10:56.783] 
+[13:10:56.783] 	npm install --save-dev typescript
+[13:10:56.783] 
+[13:10:56.783] If you are not trying to use TypeScript, please remove the tsconfig.json file from your package root (and any TypeScript files in your app and pages directories).
+[13:10:56.783] 
+[13:10:56.793] Next.js build worker exited with code: 1 and signal: null
+[13:10:56.814] Error: Command "npm ci && npm run build" exited with 1

@@ -1,5 +1,4 @@
 {
-  "buildCommand": "npm ci && npm run build",
   "functions": {
     "pages/api/**/*.js": {
       "maxDuration": 30
