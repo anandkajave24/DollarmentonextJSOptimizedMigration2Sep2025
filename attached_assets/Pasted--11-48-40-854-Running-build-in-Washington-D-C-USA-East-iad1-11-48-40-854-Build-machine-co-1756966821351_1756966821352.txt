@@ -1,0 +1,49 @@
+[11:48:40.854] Running build in Washington, D.C., USA (East) – iad1
+[11:48:40.854] Build machine configuration: 2 cores, 8 GB
+[11:48:40.883] Cloning github.com/anandkajave24/DollarmentonextJSOptimizedMigration2Sep2025 (Branch: main, Commit: 58ed202)
+[11:48:41.020] Previous build caches not available
+[11:48:41.742] Cloning completed: 858.000ms
+[11:48:42.171] Running "vercel build"
+[11:48:42.570] Vercel CLI 47.0.4
+[11:48:42.999] Running "install" command: `npm install`...
+[11:48:49.396] npm warn deprecated gm@1.25.1: The gm module has been sunset. Please migrate to an alternative. https://github.com/aheckmann/gm?tab=readme-ov-file#2025-02-24-this-project-is-not-maintained
+[11:48:49.514] npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+[11:49:04.872] 
+[11:49:04.872] added 516 packages, and audited 517 packages in 22s
+[11:49:04.872] 
+[11:49:04.873] 67 packages are looking for funding
+[11:49:04.873]   run `npm fund` for details
+[11:49:04.875] 
+[11:49:04.875] 2 vulnerabilities (1 low, 1 critical)
+[11:49:04.875] 
+[11:49:04.875] To address all issues, run:
+[11:49:04.875]   npm audit fix
+[11:49:04.875] 
+[11:49:04.875] Run `npm audit` for details.
+[11:49:04.928] Detected Next.js version: 15.5.2
+[11:49:04.928] Running "npm run build"
+[11:49:05.041] 
+[11:49:05.042] > rest-express@1.0.0 build
+[11:49:05.042] > next build
+[11:49:05.042] 
+[11:49:05.646] Attention: Next.js now collects completely anonymous telemetry regarding usage.
+[11:49:05.647] This information is used to shape Next.js' roadmap and prioritize features.
+[11:49:05.647] You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+[11:49:05.647] https://nextjs.org/telemetry
+[11:49:05.647] 
+[11:49:05.703]    ▲ Next.js 15.5.2
+[11:49:05.704]    - Environments: .env.production
+[11:49:05.704]    - Experiments (use with caution):
+[11:49:05.704]      · optimizePackageImports
+[11:49:05.704] 
+[11:49:05.791]    Linting and checking validity of types ...
+[11:49:05.901] It looks like you're trying to use TypeScript but do not have the required package(s) installed.
+[11:49:05.903] 
+[11:49:05.903] Please install typescript by running:
+[11:49:05.904] 
+[11:49:05.904] 	npm install --save-dev typescript
+[11:49:05.904] 
+[11:49:05.904] If you are not trying to use TypeScript, please remove the tsconfig.json file from your package root (and any TypeScript files in your app and pages directories).
+[11:49:05.904] 
+[11:49:05.909] Next.js build worker exited with code: 1 and signal: null
+[11:49:05.930] Error: Command "npm run build" exited with 1
